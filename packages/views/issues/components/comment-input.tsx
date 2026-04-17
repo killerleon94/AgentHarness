@@ -11,9 +11,10 @@ import { api } from "@multica/core/api";
 interface CommentInputProps {
   issueId: string;
   onSubmit: (content: string, attachmentIds?: string[]) => Promise<void>;
+  placeholder?: string;
 }
 
-function CommentInput({ issueId, onSubmit }: CommentInputProps) {
+function CommentInput({ issueId, onSubmit, placeholder }: CommentInputProps) {
   const editorRef = useRef<ContentEditorRef>(null);
   const [isEmpty, setIsEmpty] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -53,7 +54,7 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2">
         <ContentEditor
           ref={editorRef}
-          placeholder="Leave a comment..."
+          placeholder={placeholder ?? "Leave a comment..."}
           onUpdate={(md) => setIsEmpty(!md.trim())}
           onSubmit={handleSubmit}
           onUploadFile={handleUpload}

@@ -142,15 +142,23 @@ export const zh = {
     settings: "设置",
     tasks: "任务",
   },
-  issueDetail: {
+issueDetail: {
     assignee: {
-      unassigned: "未分配",
+      unassigned: "未指派",
     },
     properties: {
       dueDate: "截止日期",
     },
     dueDate: {
       clear: "清除日期",
+    },
+    placeholders: {
+      description: "添加描述...",
+      reply: "添加回复...",
+      comment: "添加评论...",
+    },
+    activity: {
+      title: "活动",
     },
   },
   projects: {
@@ -327,6 +335,56 @@ export const zh = {
     runtimes: "运行时",
     skills: "技能",
     settings: "设置",
+  },
+  inbox: {
+    title: "收件箱",
+    emptyState: {
+      title: "暂无通知",
+    },
+    detail: {
+      empty: "收件箱为空",
+      selectNotification: "选择通知查看详情",
+    },
+    actions: {
+      markAllRead: "全部标为已读",
+      archiveAll: "归档全部",
+      archiveAllRead: "归档已读",
+      archiveCompleted: "归档已完成",
+      archive: "归档",
+    },
+    errors: {
+      markReadFailed: "标为已读失败",
+      archiveFailed: "归档失败",
+      markAllReadFailed: "全部标为已读失败",
+      archiveAllFailed: "归档全部失败",
+      archiveAllReadFailed: "归档已读项目失败",
+      archiveCompletedFailed: "归档已完成失败",
+    },
+    types: {
+      issue_assigned: "已指派",
+      unassigned: "已取消指派",
+      assignee_changed: "指派人已更改",
+      status_changed: "状态已更改",
+      priority_changed: "优先级已更改",
+      due_date_changed: "截止日期已更改",
+      new_comment: "新评论",
+      mentioned: "被提及",
+      review_requested: "请求审核",
+      task_completed: "任务已完成",
+      task_failed: "任务失败",
+      agent_blocked: "代理已阻塞",
+      agent_completed: "代理已完成",
+      reaction_added: "已回应",
+    },
+    detailLabels: {
+      setStatusTo: "设置状态为",
+      setPriorityTo: "设置优先级为",
+      assignedTo: "指派给",
+      removedAssignee: "已移除指派人",
+      setDueDateTo: "设置截止日期为",
+      removedDueDate: "已移除截止日期",
+      reactedTo: "回应了 {emoji} 您的评论",
+    },
   },
   settings: {
     general: {

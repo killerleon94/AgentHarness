@@ -7,7 +7,7 @@ import type { InboxItem, InboxItemType, IssueStatus, IssuePriority } from "@mult
 
 type TranslateFn = (key: string, fallback: string) => string;
 
-const typeLabels: Record<InboxItemType, string> = {
+const typeLabelsFallbacks: Record<InboxItemType, string> = {
   issue_assigned: "Assigned",
   unassigned: "Unassigned",
   assignee_changed: "Assignee changed",
@@ -24,7 +24,7 @@ const typeLabels: Record<InboxItemType, string> = {
   reaction_added: "Reacted",
 };
 
-export { typeLabels };
+export { typeLabelsFallbacks };
 
 function shortDate(dateStr: string): string {
   if (!dateStr) return "";
@@ -42,7 +42,7 @@ export function getInboxDetailLabel(item: InboxItem, t?: TranslateFn): React.Rea
 
   switch (item.type) {
     case "status_changed": {
-      if (!details.to) return <span>{translate(`inbox.types.${item.type}`, typeLabels[item.type])}</span>;
+      if (!details.to) return <span>{translate(`inbox.types.${item.type}`, typeLabelsFallbacks[item.type])}</span>;
       const label = STATUS_CONFIG[details.to as IssueStatus]?.label ?? details.to;
       return (
         <span className="inline-flex items-center gap-1">
@@ -53,7 +53,7 @@ export function getInboxDetailLabel(item: InboxItem, t?: TranslateFn): React.Rea
       );
     }
     case "priority_changed": {
-      if (!details.to) return <span>{translate(`inbox.types.${item.type}`, typeLabels[item.type])}</span>;
+      if (!details.to) return <span>{translate(`inbox.types.${item.type}`, typeLabelsFallbacks[item.type])}</span>;
       const label = PRIORITY_CONFIG[details.to as IssuePriority]?.label ?? details.to;
       return (
         <span className="inline-flex items-center gap-1">
@@ -67,7 +67,7 @@ export function getInboxDetailLabel(item: InboxItem, t?: TranslateFn): React.Rea
       if (details.new_assignee_id) {
         return <span>{translate('inbox.detailLabels.assignedTo', 'Assigned to')} {getActorName(details.new_assignee_type ?? "member", details.new_assignee_id)}</span>;
       }
-      return <span>{translate(`inbox.types.${item.type}`, typeLabels[item.type])}</span>;
+      return <span>{translate(`inbox.types.${item.type}`, typeLabelsFallbacks[item.type])}</span>;
     }
     case "unassigned":
       return <span>{translate('inbox.detailLabels.removedAssignee', 'Removed assignee')}</span>;
@@ -75,7 +75,7 @@ export function getInboxDetailLabel(item: InboxItem, t?: TranslateFn): React.Rea
       if (details.new_assignee_id) {
         return <span>{translate('inbox.detailLabels.assignedTo', 'Assigned to')} {getActorName(details.new_assignee_type ?? "member", details.new_assignee_id)}</span>;
       }
-      return <span>{translate(`inbox.types.${item.type}`, typeLabels[item.type])}</span>;
+      return <span>{translate(`inbox.types.${item.type}`, typeLabelsFallbacks[item.type])}</span>;
     }
     case "due_date_changed": {
       if (details.to) return <span>{translate('inbox.detailLabels.setDueDateTo', 'Set due date to')} {shortDate(details.to)}</span>;
@@ -83,14 +83,14 @@ export function getInboxDetailLabel(item: InboxItem, t?: TranslateFn): React.Rea
     }
     case "new_comment": {
       if (item.body) return <span>{item.body}</span>;
-      return <span>{translate(`inbox.types.${item.type}`, typeLabels[item.type])}</span>;
+      return <span>{translate(`inbox.types.${item.type}`, typeLabelsFallbacks[item.type])}</span>;
     }
     case "reaction_added": {
       const emoji = details.emoji;
       if (emoji) return <span>{translate('inbox.detailLabels.reactedTo', 'Reacted {emoji} to your comment').replace('{emoji}', emoji)}</span>;
-      return <span>{translate(`inbox.types.${item.type}`, typeLabels[item.type])}</span>;
+      return <span>{translate(`inbox.types.${item.type}`, typeLabelsFallbacks[item.type])}</span>;
     }
     default:
-      return <span>{translate(`inbox.types.${item.type}`, typeLabels[item.type] ?? item.type)}</span>;
+      return <span>{translate(`inbox.types.${item.type}`, typeLabelsFallbacks[item.type] ?? item.type)}</span>;
   }
 }

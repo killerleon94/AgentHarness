@@ -152,6 +152,14 @@ export const en = {
     dueDate: {
       clear: "Clear date",
     },
+    placeholders: {
+      description: "Add description...",
+      reply: "Leave a reply...",
+      comment: "Leave a comment...",
+    },
+    activity: {
+      title: "Activity",
+    },
   },
   projects: {
     detail: {
@@ -327,6 +335,56 @@ export const en = {
     runtimes: "Runtimes",
     skills: "Skills",
     settings: "Settings",
+  },
+  inbox: {
+    title: "Inbox",
+    emptyState: {
+      title: "No notifications",
+    },
+    detail: {
+      empty: "Your inbox is empty",
+      selectNotification: "Select a notification to view details",
+    },
+    actions: {
+      markAllRead: "Mark all as read",
+      archiveAll: "Archive all",
+      archiveAllRead: "Archive all read",
+      archiveCompleted: "Archive completed",
+      archive: "Archive",
+    },
+    errors: {
+      markReadFailed: "Failed to mark as read",
+      archiveFailed: "Failed to archive",
+      markAllReadFailed: "Failed to mark all as read",
+      archiveAllFailed: "Failed to archive all",
+      archiveAllReadFailed: "Failed to archive read items",
+      archiveCompletedFailed: "Failed to archive completed",
+    },
+    types: {
+      issue_assigned: "Assigned",
+      unassigned: "Unassigned",
+      assignee_changed: "Assignee changed",
+      status_changed: "Status changed",
+      priority_changed: "Priority changed",
+      due_date_changed: "Due date changed",
+      new_comment: "New comment",
+      mentioned: "Mentioned",
+      review_requested: "Review requested",
+      task_completed: "Task completed",
+      task_failed: "Task failed",
+      agent_blocked: "Agent blocked",
+      agent_completed: "Agent completed",
+      reaction_added: "Reacted",
+    },
+    detailLabels: {
+      setStatusTo: "Set status to",
+      setPriorityTo: "Set priority to",
+      assignedTo: "Assigned to",
+      removedAssignee: "Removed assignee",
+      setDueDateTo: "Set due date to",
+      removedDueDate: "Removed due date",
+      reactedTo: "Reacted {emoji} to your comment",
+    },
   },
   settings: {
     general: {

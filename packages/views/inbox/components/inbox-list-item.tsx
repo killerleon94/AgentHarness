@@ -8,15 +8,16 @@ import { getInboxDetailLabel } from "./inbox-detail-label";
 
 type TranslateFn = (key: string, fallback: string) => string;
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t?: TranslateFn): string {
+  const trans = t || ((key: string, fallback: string) => fallback);
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1) return trans("chat.justNow", "just now");
+  if (minutes < 60) return `${minutes}${trans("chat.minutesAgo", "m ago")}`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return `${hours}${trans("chat.hoursAgo", "h ago")}`;
   const days = Math.floor(hours / 24);
-  return `${days}d`;
+  return `${days}${trans("chat.daysAgo", "d ago")}`;
 }
 
 export { timeAgo };
@@ -87,7 +88,7 @@ export function InboxListItem({
             {getInboxDetailLabel(item, t)}
           </p>
           <span className={`shrink-0 text-xs ${item.read ? "text-muted-foreground/60" : "text-muted-foreground"}`}>
-            {timeAgo(item.created_at)}
+            {timeAgo(item.created_at, t)}
           </span>
         </div>
       </div>

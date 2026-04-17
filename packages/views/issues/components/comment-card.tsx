@@ -41,6 +41,8 @@ import type { TimelineEntry } from "@multica/core/types";
 // Types
 // ---------------------------------------------------------------------------
 
+type TranslateFn = (key: string, fallback: string) => string;
+
 interface CommentCardProps {
   issueId: string;
   entry: TimelineEntry;
@@ -52,6 +54,7 @@ interface CommentCardProps {
   onToggleReaction: (commentId: string, emoji: string) => void;
   /** ID of the comment to highlight (flash animation). */
   highlightedCommentId?: string | null;
+  t?: TranslateFn;
 }
 
 // ---------------------------------------------------------------------------
@@ -286,7 +289,10 @@ function CommentCard({
   onDelete,
   onToggleReaction,
   highlightedCommentId,
+  t,
 }: CommentCardProps) {
+  const defaultT = (key: string, fallback: string) => fallback;
+  const translate = t || defaultT;
   const { getActorName } = useActorName();
   const { uploadWithToast } = useFileUpload(api);
   const [open, setOpen] = useState(true);
@@ -504,7 +510,7 @@ function CommentCard({
           <div className="border-t border-border/50 px-4 py-2.5">
             <ReplyInput
               issueId={issueId}
-              placeholder="Leave a reply..."
+              placeholder={translate('issueDetail.placeholders.reply', 'Leave a reply...')}
               size="sm"
               avatarType="member"
               avatarId={currentUserId ?? ""}

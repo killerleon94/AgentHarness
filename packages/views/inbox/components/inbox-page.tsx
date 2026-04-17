@@ -46,7 +46,7 @@ import {
 } from "@multica/ui/components/ui/dropdown-menu";
 import { useIsMobile } from "@multica/ui/hooks/use-mobile";
 import { InboxListItem, timeAgo } from "./inbox-list-item";
-import { typeLabels, getInboxDetailLabel } from "./inbox-detail-label";
+import { getInboxDetailLabel } from "./inbox-detail-label";
 
 type TranslateFn = (key: string, fallback: string) => string;
 
@@ -217,12 +217,13 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
       onDelete={() => {
         handleArchive(selected.id);
       }}
+      t={t}
     />
   ) : selected ? (
     <div className="p-6">
       <h2 className="text-lg font-semibold">{selected.title}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {t(`inbox.types.${selected.type}`, typeLabels[selected.type])} · {timeAgo(selected.created_at)}
+        {t(`inbox.types.${selected.type}`, "Assigned")} · {timeAgo(selected.created_at, t)}
       </p>
       {selected.body && (
         <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">

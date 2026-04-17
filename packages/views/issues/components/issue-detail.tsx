@@ -1152,6 +1152,7 @@ export function IssueDetail({
                           onDelete={deleteComment}
                           onToggleReaction={handleToggleReaction}
                           highlightedCommentId={highlightedId}
+                          t={t}
                         />
                       </div>
                     );
@@ -1208,7 +1209,7 @@ export function IssueDetail({
 
             {/* Bottom comment input — no avatar, full width */}
             <div className="mt-4">
-              <CommentInput issueId={id} onSubmit={submitComment} />
+              <CommentInput issueId={id} placeholder={t('issueDetail.placeholders.comment', 'Leave a comment...')} onSubmit={submitComment} />
             </div>
           </div>
         </div>
