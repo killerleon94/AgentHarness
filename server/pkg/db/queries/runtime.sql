@@ -11,6 +11,13 @@ WHERE id = $1;
 SELECT * FROM agent_runtime
 WHERE id = $1 AND workspace_id = $2;
 
+-- name: GetDaemonRuntimeByWorkspace :one
+-- Returns the daemon runtime for a workspace (runtime with daemon_id not null).
+SELECT * FROM agent_runtime
+WHERE workspace_id = $1 AND daemon_id IS NOT NULL
+ORDER BY last_seen_at DESC
+LIMIT 1;
+
 -- name: UpsertAgentRuntime :one
 INSERT INTO agent_runtime (
     workspace_id,
@@ -22,8 +29,9 @@ INSERT INTO agent_runtime (
     device_info,
     metadata,
     owner_id,
+    health_port,
     last_seen_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
 ON CONFLICT (workspace_id, daemon_id, provider)
 DO UPDATE SET
     name = EXCLUDED.name,
@@ -32,6 +40,7 @@ DO UPDATE SET
     device_info = EXCLUDED.device_info,
     metadata = EXCLUDED.metadata,
     owner_id = COALESCE(EXCLUDED.owner_id, agent_runtime.owner_id),
+    health_port = EXCLUDED.health_port,
     last_seen_at = now(),
     updated_at = now()
 RETURNING *;

@@ -771,4 +771,38 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  async downloadWorkdirFile(workspaceId: string, path: string, filename: string): Promise<void> {
+    const url = `${this.baseUrl}/api/workspaces/${workspaceId}/download?path=${encodeURIComponent(path)}`;
+    const response = await fetch(url, {
+      headers: this.authHeaders(),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const message = await this.parseErrorMessage(response, "Download failed");
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  }
+
+  async listWorkdirFiles(workspaceId: string, path: string): Promise<{ name: string; is_dir: boolean; size: number }[]> {
+    const url = `${this.baseUrl}/api/workspaces/${workspaceId}/download?path=${encodeURIComponent(path)}&ls=1`;
+    const response = await fetch(url, {
+      headers: this.authHeaders(),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const message = await this.parseErrorMessage(response, "Failed to list files");
+      throw new Error(message);
+    }
+    return response.json();
+  }
 }

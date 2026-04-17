@@ -18,6 +18,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/auth"
+	"github.com/multica-ai/multica/server/internal/cli"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
@@ -337,23 +338,24 @@ func ensureUserPAT(userID, profile, wsID, serverURL string, queries *db.Queries)
 		// Continue anyway - CLI will try its own auth
 	}
 
-	// Save the PAT to the user's profile config
-	cfg := struct {
-		Token       string `json:"token"`
-		ServerURL   string `json:"server_url"`
-		WorkspaceID string `json:"workspace_id"`
-	}{
-		Token:       patToken,
-		ServerURL:   serverURL,
-		WorkspaceID: wsID,
-	}
-	cfgData, _ := json.Marshal(cfg)
+	// Save the PAT to the user's profile config using proper CLI config structure
 	profileDir := filepath.Join(os.Getenv("HOME"), ".multica", "profiles", profile)
 	os.MkdirAll(profileDir, 0755)
-	if err := os.WriteFile(cfgPath, cfgData, 0644); err != nil {
+
+	cfg, err := cli.LoadCLIConfigForProfile(profile)
+	if err != nil {
+		cfg = cli.CLIConfig{}
+	}
+	cfg.Token = patToken
+	cfg.ServerURL = serverURL
+	cfg.WorkspaceID = wsID
+	cfg.AddWatchedWorkspace(wsID, "")
+
+	if err := cli.SaveCLIConfigForProfile(cfg, profile); err != nil {
 		slog.Warn("failed to save PAT to profile config", "error", err)
 	}
 
+	cfgPath = filepath.Join(profileDir, "config.json")
 	slog.Info("saved PAT to profile config", "profile", profile, "path", cfgPath)
 	return patToken, nil
 }

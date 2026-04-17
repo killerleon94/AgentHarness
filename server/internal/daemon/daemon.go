@@ -259,6 +259,7 @@ func (d *Daemon) registerRuntimesForWorkspace(ctx context.Context, workspaceID s
 		"daemon_id":    d.cfg.DaemonID,
 		"device_name":  d.cfg.DeviceName,
 		"cli_version":  d.cfg.CLIVersion,
+		"health_port":  d.cfg.HealthPort,
 		"runtimes":     runtimes,
 	}
 

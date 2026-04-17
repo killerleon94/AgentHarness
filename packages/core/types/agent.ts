@@ -35,6 +35,7 @@ export interface AgentTask {
   result: unknown;
   error: string | null;
   created_at: string;
+  work_dir: string | null;
 }
 
 export interface Agent {

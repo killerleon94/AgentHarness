@@ -53,6 +53,7 @@ type AgentRuntime struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 	OwnerID     pgtype.UUID        `json:"owner_id"`
+	HealthPort  int32              `json:"health_port"`
 }
 
 type AgentSkill struct {

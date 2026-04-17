@@ -3,8 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -117,6 +119,7 @@ type DaemonRegisterRequest struct {
 	DaemonID    string `json:"daemon_id"`
 	DeviceName  string `json:"device_name"`
 	CLIVersion  string `json:"cli_version"` // multica CLI version
+	HealthPort  int    `json:"health_port"` // daemon's local HTTP server port
 	Runtimes    []struct {
 		Name    string `json:"name"`
 		Type    string `json:"type"`
@@ -212,6 +215,7 @@ func (h *Handler) DaemonRegister(w http.ResponseWriter, r *http.Request) {
 			DeviceInfo:  deviceInfo,
 			Metadata:    metadata,
 			OwnerID:     ownerID,
+			HealthPort:  int32(req.HealthPort),
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to register runtime: "+err.Error())
@@ -841,4 +845,73 @@ func (h *Handler) GetIssueUsage(w http.ResponseWriter, r *http.Request) {
 		"total_cache_write_tokens": row.TotalCacheWriteTokens,
 		"task_count":               row.TaskCount,
 	})
+}
+
+// DownloadWorkspaceFile proxies a file download request to the local daemon.
+// GET /api/workspaces/{workspace_id}/download?path=...
+func (h *Handler) DownloadWorkspaceFile(w http.ResponseWriter, r *http.Request) {
+	workspaceID := chi.URLParam(r, "id")
+	if workspaceID == "" {
+		writeError(w, http.StatusBadRequest, "workspace_id is required")
+		return
+	}
+
+	filePath := r.URL.Query().Get("path")
+	if filePath == "" {
+		writeError(w, http.StatusBadRequest, "path is required")
+		return
+	}
+
+	// Look up the daemon's health port from the database
+	runtime, err := h.Queries.GetDaemonRuntimeByWorkspace(r.Context(), parseUUID(workspaceID))
+	if err != nil {
+		slog.Warn("no daemon runtime found for workspace", "workspace_id", workspaceID)
+		writeError(w, http.StatusServiceUnavailable, "daemon not registered for workspace")
+		return
+	}
+
+	daemonPort := int(runtime.HealthPort)
+	if daemonPort == 0 {
+		daemonPort = 19514 // fallback to default
+	}
+
+	// Proxy to daemon's file server
+	url := fmt.Sprintf("http://127.0.0.1:%d/files/%s?path=%s", daemonPort, workspaceID, url.QueryEscape(filePath))
+	if r.URL.Query().Get("ls") == "1" {
+		url += "&ls=1"
+	}
+	slog.Info("proxying file request", "url", url, "workspace_id", workspaceID, "file_path", filePath)
+
+	proxyReq, err := http.NewRequestWithContext(r.Context(), http.MethodGet, url, nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create request")
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(proxyReq)
+	if err != nil {
+		slog.Warn("daemon file download failed", "workspace_id", workspaceID, "path", filePath, "error", err)
+		writeError(w, http.StatusServiceUnavailable, "daemon unavailable")
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		writeError(w, http.StatusNotFound, "file not found")
+		return
+	}
+	if resp.StatusCode == http.StatusForbidden {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		writeError(w, resp.StatusCode, "daemon error")
+		return
+	}
+
+	// Stream response to client
+	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+	w.Header().Set("Content-Disposition", resp.Header.Get("Content-Disposition"))
+	w.Header().Set("Content-Length", resp.Header.Get("Content-Length"))
+	io.Copy(w, resp.Body)
 }

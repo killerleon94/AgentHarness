@@ -8,3 +8,7 @@ export function timeAgo(dateStr: string): string {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
+
+export function shortID(uuid: string): string {
+  return uuid.replace(/-/g, "").substring(0, 8);
+}

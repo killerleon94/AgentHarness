@@ -62,6 +62,8 @@ import { ProjectPicker } from "../../projects/components/project-picker";
 import { CommentCard } from "./comment-card";
 import { CommentInput } from "./comment-input";
 import { AgentLiveCard, TaskRunHistory } from "./agent-live-card";
+import { AttachmentList } from "./attachment-list";
+import { WorkdirFileBrowser } from "./workdir-file-download";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@multica/core/auth";
 import { useWorkspaceStore } from "@multica/core/workspace";
@@ -848,6 +850,8 @@ export function IssueDetail({
             {descDragOver && <FileDropOverlay />}
           </div>
 
+          <AttachmentList issueId={id} t={t} />
+
           {/* Sub-issues — Linear-style */}
           {childIssues.length === 0 && (
             <div className="mt-6">
@@ -1361,6 +1365,17 @@ export function IssueDetail({
               </div>
             </div>
           )}
+
+          {/* Agent files */}
+          <div>
+            <div className="text-xs font-medium mb-2 flex items-center gap-1">
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground rotate-90" />
+              {t('issueDetail.labels.agentFiles', 'Agent Files')}
+            </div>
+            <div className="pl-2">
+              <WorkdirFileBrowser workspaceId={issue.workspace_id} issueId={id} />
+            </div>
+          </div>
 
         </div>
       </div>

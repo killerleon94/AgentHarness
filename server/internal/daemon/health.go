@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/multica-ai/multica/server/internal/daemon/repocache"
@@ -124,6 +128,112 @@ func (d *Daemon) serveHealth(ctx context.Context, ln net.Listener, startedAt tim
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
+	})
+
+	// File endpoint: GET /files/{workspace_id}?path=...&ls=1
+	// path is relative to the workspace's root directory.
+	// If ls=1 is set, returns JSON directory listing instead of file download.
+	mux.HandleFunc("/files/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Extract workspace_id from URL path: /files/{workspace_id}
+		path := r.URL.Path
+		if !strings.HasPrefix(path, "/files/") {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
+		}
+		workspaceID := strings.TrimPrefix(path, "/files/")
+		if workspaceID == "" || strings.Contains(workspaceID, "/") {
+			http.Error(w, "workspace_id is required", http.StatusBadRequest)
+			return
+		}
+
+		// Get the requested file path relative to workspace root
+		filePath := r.URL.Query().Get("path")
+		if filePath == "" {
+			http.Error(w, "path is required", http.StatusBadRequest)
+			return
+		}
+
+		// Build the absolute path and validate it's within the workspace directory
+		workspaceRoot := filepath.Join(d.cfg.WorkspacesRoot, workspaceID)
+		filePath = filepath.Clean(filePath)
+		absPath := filepath.Join(workspaceRoot, filePath)
+		absPath = filepath.Clean(absPath)
+
+		slog.Info("files endpoint", "workspace_root", workspaceRoot, "abs_path", absPath, "file_path", filePath)
+
+		// Validate: absPath must be inside workspaceRoot
+		if !strings.HasPrefix(absPath, workspaceRoot) {
+			slog.Warn("path outside workspace", "abs_path", absPath, "workspace_root", workspaceRoot)
+			http.Error(w, "path outside workspace", http.StatusForbidden)
+			return
+		}
+
+		// Check if listing directory
+		if r.URL.Query().Get("ls") == "1" {
+			entries, err := os.ReadDir(absPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					http.Error(w, "directory not found", http.StatusNotFound)
+					return
+				}
+				http.Error(w, "failed to read directory", http.StatusInternalServerError)
+				return
+			}
+			type FileEntry struct {
+				Name  string `json:"name"`
+				IsDir bool   `json:"is_dir"`
+				Size  int64  `json:"size"`
+			}
+			var files []FileEntry
+			for _, entry := range entries {
+				info, err := entry.Info()
+				if err != nil {
+					continue
+				}
+				files = append(files, FileEntry{
+					Name:  entry.Name(),
+					IsDir: entry.IsDir(),
+					Size:  info.Size(),
+				})
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(files)
+			return
+		}
+
+		// Open the file
+		file, err := os.Open(absPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				http.Error(w, "file not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "failed to open file", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		// Get file info for Content-Disposition
+		info, err := file.Stat()
+		if err != nil {
+			http.Error(w, "failed to stat path", http.StatusInternalServerError)
+			return
+		}
+		if info.IsDir() {
+			http.Error(w, "directory listing not supported", http.StatusForbidden)
+			return
+		}
+
+		// Serve the file
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, info.Name()))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
+		io.Copy(w, file)
 	})
 
 	srv := &http.Server{Handler: mux}

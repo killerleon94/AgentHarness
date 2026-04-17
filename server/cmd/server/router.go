@@ -143,6 +143,7 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 					r.Get("/", h.GetWorkspace)
 					r.Get("/members", h.ListMembersWithUser)
 					r.Post("/leave", h.LeaveWorkspace)
+					r.Get("/download", h.DownloadWorkspaceFile)
 				})
 				// Admin-level access
 				r.Group(func(r chi.Router) {

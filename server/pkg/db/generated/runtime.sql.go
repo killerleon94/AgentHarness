@@ -79,7 +79,7 @@ func (q *Queries) FailTasksForOfflineRuntimes(ctx context.Context) ([]FailTasksF
 }
 
 const getAgentRuntime = `-- name: GetAgentRuntime :one
-SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id FROM agent_runtime
+SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id, health_port FROM agent_runtime
 WHERE id = $1
 `
 
@@ -100,12 +100,13 @@ func (q *Queries) GetAgentRuntime(ctx context.Context, id pgtype.UUID) (AgentRun
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.OwnerID,
+		&i.HealthPort,
 	)
 	return i, err
 }
 
 const getAgentRuntimeForWorkspace = `-- name: GetAgentRuntimeForWorkspace :one
-SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id FROM agent_runtime
+SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id, health_port FROM agent_runtime
 WHERE id = $1 AND workspace_id = $2
 `
 
@@ -131,12 +132,43 @@ func (q *Queries) GetAgentRuntimeForWorkspace(ctx context.Context, arg GetAgentR
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.OwnerID,
+		&i.HealthPort,
+	)
+	return i, err
+}
+
+const getDaemonRuntimeByWorkspace = `-- name: GetDaemonRuntimeByWorkspace :one
+SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id, health_port FROM agent_runtime
+WHERE workspace_id = $1 AND daemon_id IS NOT NULL
+ORDER BY last_seen_at DESC
+LIMIT 1
+`
+
+// Returns the daemon runtime for a workspace (runtime with daemon_id not null).
+func (q *Queries) GetDaemonRuntimeByWorkspace(ctx context.Context, workspaceID pgtype.UUID) (AgentRuntime, error) {
+	row := q.db.QueryRow(ctx, getDaemonRuntimeByWorkspace, workspaceID)
+	var i AgentRuntime
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.DaemonID,
+		&i.Name,
+		&i.RuntimeMode,
+		&i.Provider,
+		&i.Status,
+		&i.DeviceInfo,
+		&i.Metadata,
+		&i.LastSeenAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OwnerID,
+		&i.HealthPort,
 	)
 	return i, err
 }
 
 const listAgentRuntimes = `-- name: ListAgentRuntimes :many
-SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id FROM agent_runtime
+SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id, health_port FROM agent_runtime
 WHERE workspace_id = $1
 ORDER BY created_at ASC
 `
@@ -164,6 +196,7 @@ func (q *Queries) ListAgentRuntimes(ctx context.Context, workspaceID pgtype.UUID
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.OwnerID,
+			&i.HealthPort,
 		); err != nil {
 			return nil, err
 		}
@@ -176,7 +209,7 @@ func (q *Queries) ListAgentRuntimes(ctx context.Context, workspaceID pgtype.UUID
 }
 
 const listAgentRuntimesByOwner = `-- name: ListAgentRuntimesByOwner :many
-SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id FROM agent_runtime
+SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id, health_port FROM agent_runtime
 WHERE workspace_id = $1 AND owner_id = $2
 ORDER BY created_at ASC
 `
@@ -209,6 +242,7 @@ func (q *Queries) ListAgentRuntimesByOwner(ctx context.Context, arg ListAgentRun
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.OwnerID,
+			&i.HealthPort,
 		); err != nil {
 			return nil, err
 		}
@@ -268,7 +302,7 @@ const updateAgentRuntimeHeartbeat = `-- name: UpdateAgentRuntimeHeartbeat :one
 UPDATE agent_runtime
 SET status = 'online', last_seen_at = now(), updated_at = now()
 WHERE id = $1
-RETURNING id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id
+RETURNING id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id, health_port
 `
 
 func (q *Queries) UpdateAgentRuntimeHeartbeat(ctx context.Context, id pgtype.UUID) (AgentRuntime, error) {
@@ -288,6 +322,7 @@ func (q *Queries) UpdateAgentRuntimeHeartbeat(ctx context.Context, id pgtype.UUI
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.OwnerID,
+		&i.HealthPort,
 	)
 	return i, err
 }
@@ -303,8 +338,9 @@ INSERT INTO agent_runtime (
     device_info,
     metadata,
     owner_id,
+    health_port,
     last_seen_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
 ON CONFLICT (workspace_id, daemon_id, provider)
 DO UPDATE SET
     name = EXCLUDED.name,
@@ -313,9 +349,10 @@ DO UPDATE SET
     device_info = EXCLUDED.device_info,
     metadata = EXCLUDED.metadata,
     owner_id = COALESCE(EXCLUDED.owner_id, agent_runtime.owner_id),
+    health_port = EXCLUDED.health_port,
     last_seen_at = now(),
     updated_at = now()
-RETURNING id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id
+RETURNING id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id, health_port
 `
 
 type UpsertAgentRuntimeParams struct {
@@ -328,6 +365,7 @@ type UpsertAgentRuntimeParams struct {
 	DeviceInfo  string      `json:"device_info"`
 	Metadata    []byte      `json:"metadata"`
 	OwnerID     pgtype.UUID `json:"owner_id"`
+	HealthPort  int32       `json:"health_port"`
 }
 
 func (q *Queries) UpsertAgentRuntime(ctx context.Context, arg UpsertAgentRuntimeParams) (AgentRuntime, error) {
@@ -341,6 +379,7 @@ func (q *Queries) UpsertAgentRuntime(ctx context.Context, arg UpsertAgentRuntime
 		arg.DeviceInfo,
 		arg.Metadata,
 		arg.OwnerID,
+		arg.HealthPort,
 	)
 	var i AgentRuntime
 	err := row.Scan(
@@ -357,6 +396,7 @@ func (q *Queries) UpsertAgentRuntime(ctx context.Context, arg UpsertAgentRuntime
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.OwnerID,
+		&i.HealthPort,
 	)
 	return i, err
 }

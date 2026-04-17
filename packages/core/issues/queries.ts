@@ -126,3 +126,10 @@ export function issueUsageOptions(issueId: string) {
     queryFn: () => api.getIssueUsage(issueId),
   });
 }
+
+export function issueAttachmentsOptions(issueId: string) {
+  return queryOptions({
+    queryKey: ["issues", "attachments", issueId] as const,
+    queryFn: () => api.listAttachments(issueId),
+  });
+}
