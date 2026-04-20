@@ -9,7 +9,7 @@ import { getInboxDetailLabel } from "./inbox-detail-label";
 type TranslateFn = (key: string, fallback: string) => string;
 
 function timeAgo(dateStr: string, t?: TranslateFn): string {
-  const trans = t || ((key: string, fallback: string) => fallback);
+  const trans = t || ((_key: string, fallback: string) => fallback);
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return trans("chat.justNow", "just now");

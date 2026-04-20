@@ -40,7 +40,7 @@ export function PropertyPicker({
   t?: TranslateFn;
 }) {
   const [query, setQuery] = useState("");
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
 
   const handleOpenChange = useCallback(

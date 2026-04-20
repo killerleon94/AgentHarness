@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
 import { Check, ChevronRight, Link2, ListTodo, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -28,7 +28,6 @@ import { ActorAvatar } from "../../common/actor-avatar";
 import { AppLink, useNavigation } from "../../navigation";
 import { TitleEditor, ContentEditor, type ContentEditorRef } from "../../editor";
 import { PriorityIcon } from "../../issues/components/priority-icon";
-import { StatusIcon } from "../../issues/components/status-icon";
 import { IssuesHeader } from "../../issues/components/issues-header";
 import { BoardView } from "../../issues/components/board-view";
 import { ListView } from "../../issues/components/list-view";
@@ -117,7 +116,7 @@ function PropRow({
 const projectViewStore = createIssueViewStore("project_issues_view");
 
 function ProjectIssuesContent({ projectIssues, t }: { projectIssues: Issue[]; t?: TranslateFn }) {
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
   
   const viewMode = useViewStore((s) => s.viewMode);

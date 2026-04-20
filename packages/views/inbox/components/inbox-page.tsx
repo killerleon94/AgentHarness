@@ -46,7 +46,6 @@ import {
 } from "@multica/ui/components/ui/dropdown-menu";
 import { useIsMobile } from "@multica/ui/hooks/use-mobile";
 import { InboxListItem, timeAgo } from "./inbox-list-item";
-import { getInboxDetailLabel } from "./inbox-detail-label";
 
 type TranslateFn = (key: string, fallback: string) => string;
 

@@ -37,7 +37,7 @@ function shortDate(dateStr: string): string {
 export function getInboxDetailLabel(item: InboxItem, t?: TranslateFn): React.ReactNode {
   const { getActorName } = useActorName();
   const details = item.details ?? {};
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
 
   switch (item.type) {

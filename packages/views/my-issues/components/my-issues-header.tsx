@@ -48,7 +48,6 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from "@multica/ui/components/ui/tooltip";
 import type { Issue } from "@multica/core/types";
 import { myIssuesViewStore, type MyIssuesScope } from "@multica/core/issues/stores/my-issues-view-store";
-import type { ReactNode } from "react";
 
 type TranslateFn = (key: string, fallback: string) => string;
 
@@ -107,20 +106,12 @@ function useIssueCounts(allIssues: Issue[]) {
 // Scope config
 // ---------------------------------------------------------------------------
 
-function getScopes(t: TranslateFn): { value: MyIssuesScope; label: string; description: string }[] {
-  return [
-    { value: "assigned", label: t("myIssues.scopes.assigned.label", "Assigned"), description: t("myIssues.scopes.assigned.description", "Issues assigned to me") },
-    { value: "created", label: t("myIssues.scopes.created.label", "Created"), description: t("myIssues.scopes.created.description", "Issues I created") },
-    { value: "agents", label: t("myIssues.scopes.agents.label", "My Agents"), description: t("myIssues.scopes.agents.description", "Issues assigned to my agents") },
-  ];
-}
-
 // ---------------------------------------------------------------------------
 // MyIssuesHeader
 // ---------------------------------------------------------------------------
 
 export function MyIssuesHeader({ allIssues, t: tProp }: MyIssuesHeaderProps) {
-  const defaultT: TranslateFn = (key, fallback) => fallback;
+  const defaultT: TranslateFn = (_key, fallback) => fallback;
   const t = tProp || defaultT;
 
   const getScopeLabel = (key: string, fallback: string) => t(`myIssues.scopes.${key}.label`, fallback);

@@ -31,7 +31,7 @@ export function ProjectPicker({
   const wsId = useWorkspaceId();
   const { data: projects = [] } = useQuery(projectListOptions(wsId));
   const current = projects.find((p) => p.id === projectId);
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
 
   return (

@@ -44,7 +44,7 @@ export function StatusPicker({
   const open = controlledOpen ?? internalOpen;
   const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const cfg = STATUS_CONFIG[status];
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
 
   return (
