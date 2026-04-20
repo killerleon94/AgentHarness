@@ -35,7 +35,7 @@ export function WorkdirFileBrowser({
   className,
   t,
 }: WorkdirFileBrowserProps) {
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [selectedTask, setSelectedTask] = useState<AgentTask | null>(null);

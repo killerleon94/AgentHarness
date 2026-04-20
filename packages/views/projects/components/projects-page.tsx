@@ -65,7 +65,7 @@ function getPriorityDictKey(priority: ProjectPriority): string {
 }
 
 function ProjectRow({ project, t }: { project: Project; t?: TranslateFn }) {
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
   
   const formatRelativeDate = (date: string): string => {
@@ -162,7 +162,7 @@ function PillButton({
 }
 
 function CreateProjectDialog({ open, onOpenChange, t: tProp }: { open: boolean; onOpenChange: (open: boolean) => void; t?: TranslateFn }) {
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const t = tProp || defaultT;
   
   const router = useNavigation();

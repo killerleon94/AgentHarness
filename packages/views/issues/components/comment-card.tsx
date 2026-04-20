@@ -291,7 +291,7 @@ function CommentCard({
   highlightedCommentId,
   t,
 }: CommentCardProps) {
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
   const { getActorName } = useActorName();
   const { uploadWithToast } = useFileUpload(api);

@@ -56,7 +56,7 @@ export function AssigneePicker({
   const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const { data: frequency = [] } = useQuery(assigneeFrequencyOptions(wsId));
   const { getActorName } = useActorName();
-  const defaultT = (key: string, fallback: string) => fallback;
+  const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
 
   const currentMember = members.find((m) => m.user_id === user?.id);

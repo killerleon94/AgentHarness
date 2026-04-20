@@ -1,7 +1,7 @@
 // packages/views/issues/components/board-view.tsx
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   DndContext,
   DragOverlay,
