@@ -124,7 +124,7 @@ const content: Record<Locale, LandingContent> = {
         "Turn coding agents into real teammates. Assign tasks, track progress, compound skills, and manage your human + agent workforce in one place.",
       primaryCta: "Start free trial",
       secondaryCta: "View on GitHub",
-      imageAlt: "Harness dashboard preview",
+      imageAlt: "AgentHarness dashboard preview",
     },
     featuresEyebrow: "Capabilities",
     featuresTitleTop: "Everything you need to manage",
@@ -225,7 +225,7 @@ const content: Record<Locale, LandingContent> = {
       {
         question: "What coding agents does Harness support?",
         answer:
-          "Harness supports Claude Code, Codex, OpenClaw, and OpenCode out of the box, and the runtime can be extended because the platform is open source.",
+          "Agent Harness supports Claude Code, Codex, OpenClaw, and OpenCode out of the box, and the runtime can be extended because the platform is open source.",
       },
       {
         question: "Do I need to self-host, or is there a cloud version?",
@@ -235,12 +235,12 @@ const content: Record<Locale, LandingContent> = {
       {
         question: "Can agents work on long-running tasks?",
         answer:
-          "Yes. Harness manages the full task lifecycle so agents can pick up, execute, report blockers, and complete work asynchronously.",
+          "Yes. Agent Harness manages the full task lifecycle so agents can pick up, execute, report blockers, and complete work asynchronously.",
       },
       {
         question: "Is my code safe?",
         answer:
-          "Execution happens on your own machine or infrastructure. Harness coordinates state and visibility, but your code can remain inside your environment.",
+          "Execution happens on your own machine or infrastructure. Agent Harness coordinates state and visibility, but your code can remain inside your environment."
       },
     ],
     finalTitleTop: "Ready to scale your team",
@@ -248,7 +248,7 @@ const content: Record<Locale, LandingContent> = {
     finalDescription:
       "Start with one agent. Scale to ten. No credit card required.",
     finalCta: "Get started for free",
-    footerCopyright: "© {year} Harness. All rights reserved.",
+    footerCopyright: "© {year} Agent Harness. All rights reserved.",
   },
   zh: {
     nav: {
@@ -264,14 +264,14 @@ const content: Record<Locale, LandingContent> = {
       backToTop: "返回顶部",
     },
     hero: {
-      eyebrow: " AI 劳动力管理平台",
+      eyebrow: " 元枢智能调度中枢",
       line1: "未来的团队协作里，",
       line2: "伙伴不止是人类。",
       description:
         "让编码 Agent 成为你的靠谱队友，统一任务分配、进度跟踪、能力沉淀，轻松管理人类与智能体协同团队。",
       primaryCta: "开始试用",
       secondaryCta: "查看 GitHub",
-      imageAlt: "Harness 控制台预览",
+      imageAlt: "Agent Harness 控制台预览",
     },
     featuresEyebrow: "能力地图",
     featuresTitleTop: "管理 AI 劳动力，",
@@ -317,8 +317,8 @@ const content: Record<Locale, LandingContent> = {
         description: "输入邮箱、验证码登录，系统会自动创建工作区，不需要额外的设置向导。",
       },
       {
-        title: "安装 CLI 并连接",
-        description: "运行 harness login，再执行 harness daemon start，系统会自动识别你已安装的编码 Agent。",
+        title: "运行RunTime",
+        description: "运行RunTime-Start即可生成私人可用的Ai环境，无需额外安装。也可安装harness私用cli使用托管方式调用本地智能体。",
       },
       {
         title: "创建第一个 Agent",
@@ -359,8 +359,8 @@ const content: Record<Locale, LandingContent> = {
     faqTitle: "常见问题。",
     faqs: [
       {
-        question: "Harness 支持哪些编码 Agent？",
-        answer: "Harness 默认支持 Claude Code、Codex、OpenClaw 和 OpenCode，你也可以扩展自己的 backend。",
+        question: "Agent Harness 支持哪些编码 Agent？",
+        answer: "Agent Harness 默认支持 Claude Code、Codex、OpenClaw 和 OpenCode，你也可以扩展自己的 backend。",
       },
       {
         question: "必须自托管吗？还是有云版本？",
@@ -377,14 +377,14 @@ const content: Record<Locale, LandingContent> = {
     ],
     finalTitleTop: "准备好把团队规模，",
     finalTitleBottom: "扩展到超越人力上限了吗？",
-    finalDescription: "从一个 Agent 开始，扩展到十个。不需要信用卡。",
+    finalDescription: "从一个 Agent 开始，扩展到十个。",
     finalCta: "免费开始",
-    footerCopyright: "© {year} Harness. 保留所有权利。",
+    footerCopyright: "© {year} Agent Harness. 保留所有权利。",
   },
 };
 
 const runtimeLogos = [
-  { name: "Claude Code", icon: ClaudeCodeLogo },
+  { name: "Claw Code", icon: ClaudeCodeLogo },
   { name: "Codex", icon: CodexLogo },
   { name: "OpenClaw", icon: OpenClawLogo },
   { name: "OpenCode", icon: OpenCodeLogo },
@@ -422,7 +422,7 @@ export function HarnessLanding() {
             <span className="flex size-10 items-center justify-center rounded-xl bg-brand text-white font-bold text-sm">
               H
             </span>
-            <span className="text-lg font-semibold tracking-tight">Harness</span>
+            <span className="text-lg font-semibold tracking-tight">Agent Harness</span>
           </Link>
 
           <nav className="hidden items-center gap-8 lg:flex">
@@ -780,7 +780,7 @@ export function HarnessLanding() {
             <span className="flex size-9 items-center justify-center rounded-lg bg-brand text-white font-bold text-xs">
               H
             </span>
-            <span className="text-base font-semibold">Harness</span>
+            <span className="text-base font-semibold">Agent Harness</span>
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <a href={githubUrl} target="_blank" rel="noreferrer" className="transition-colors hover:text-foreground cursor-pointer">
