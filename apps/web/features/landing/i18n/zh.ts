@@ -367,7 +367,7 @@ export const zh: LandingDict = {
           "全屏 Agent 执行日志视图",
           "编辑器支持拖拽上传文件并展示文件卡片",
           "Issue 新增附件区域，支持图片网格和文件卡片展示",
-          "运行时支持所有者追踪、筛选、头像展示和点对点更新通知",
+          "运行实例支持所有者追踪、筛选、头像展示和点对点更新通知",
           "列表视图行内显示子 Issue 进度",
           "列表视图支持已完成 Issue 分页加载",
           "Codex 会话日志扫描以报告 token 用量",
@@ -554,7 +554,7 @@ export const zh: LandingDict = {
     issues: "问题",
     projects: "项目",
     agents: "智能体",
-    runtimes: "运行时",
+    runtimes: "运行实例",
     skills: "技能",
     settings: "设置",
     pinned: "置顶",
@@ -626,7 +626,7 @@ export const zh: LandingDict = {
       parentIssue: "父级问题",
       noTaskRunsFound: "此任务没有运行记录",
       selectTask: "选择任务:",
-      agentFiles: "代理文件",
+      agentFiles: "智能体文件",
       attachments: "附件",
     },
     sections: {
@@ -809,7 +809,7 @@ export const zh: LandingDict = {
     scopes: {
       assigned: { label: "已分配", description: "分配给我的任务" },
       created: { label: "已创建", description: "我创建的任务" },
-      agents: { label: "我的代理", description: "分配给我代理的任务" },
+      agents: { label: "我的智能体", description: "分配给我智能体的任务" },
     },
   },
   inbox: {
@@ -841,8 +841,8 @@ export const zh: LandingDict = {
       review_requested: "请求审查",
       task_completed: "任务已完成",
       task_failed: "任务失败",
-      agent_blocked: "代理被阻塞",
-      agent_completed: "代理已完成",
+      agent_blocked: "智能体被阻塞",
+      agent_completed: "智能体已完成",
       reaction_added: "已回应",
     },
     detailLabels: {
