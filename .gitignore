@@ -19,3 +19,10 @@ apps/docs/.source/
 garage/
 docs/
 .env
+
+.opencode/
+
+.graphifyignore
+graphify*
+
+.venv/

@@ -51,6 +51,18 @@ func getUserMutex(userID string) *sync.Mutex {
 	return mu.(*sync.Mutex)
 }
 
+func getMulticaBinPath() string {
+	if binPath := os.Getenv("MULTICA_BIN_PATH"); binPath != "" {
+		return binPath
+	}
+	execPath, err := os.Executable()
+	if err != nil {
+		return "multica"
+	}
+	execDir := filepath.Dir(execPath)
+	return filepath.Join(execDir, "multica")
+}
+
 // runMulticaCommand executes a multica CLI command and returns the result
 func runMulticaCommand(command string, userID string, queries *db.Queries) (map[string]interface{}, error) {
 	// Get per-user mutex for isolation
@@ -82,8 +94,8 @@ func runMulticaCommand(command string, userID string, queries *db.Queries) (map[
 			env = append(env, "MULTICA_SERVER_URL="+serverURL)
 		}
 		cmd := exec.Command("sh", "-c", fmt.Sprintf(
-			"MULTICA_SERVER_URL=%s /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica --profile %s daemon status 2>&1",
-			serverURL, profile,
+			"MULTICA_SERVER_URL=%s %s --profile %s daemon status 2>&1",
+			serverURL, getMulticaBinPath(), profile,
 		))
 		cmd.Env = env
 		output, err := cmd.CombinedOutput()
@@ -112,7 +124,7 @@ func runMulticaCommand(command string, userID string, queries *db.Queries) (map[
 	if serverURL != "" {
 		env = append(env, "MULTICA_SERVER_URL="+serverURL)
 	}
-	cmd := exec.Command("sh", "-c", "/home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica "+command+" 2>&1")
+	cmd := exec.Command("sh", "-c", getMulticaBinPath()+" "+command+" 2>&1")
 	cmd.Env = env
 
 	// Get output pipes
@@ -253,13 +265,13 @@ func runDaemonStart(command string, userID string, queries *db.Queries) (map[str
 	var ctrlCmd *exec.Cmd
 	if patToken != "" {
 		ctrlCmd = exec.Command("sh", "-c", fmt.Sprintf(
-			"MULTICA_SERVER_URL=%s /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica ctrl start --user %s --workspace %s --profile %s --token %s 2>&1",
-			serverURL, userID, wsID, profile, patToken,
+			"MULTICA_SERVER_URL=%s %s ctrl start --user %s --workspace %s --profile %s --token %s 2>&1",
+			serverURL, getMulticaBinPath(), userID, wsID, profile, patToken,
 		))
 	} else {
 		ctrlCmd = exec.Command("sh", "-c", fmt.Sprintf(
-			"MULTICA_SERVER_URL=%s /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica ctrl start --user %s --workspace %s --profile %s 2>&1",
-			serverURL, userID, wsID, profile,
+			"MULTICA_SERVER_URL=%s %s ctrl start --user %s --workspace %s --profile %s 2>&1",
+			serverURL, getMulticaBinPath(), userID, wsID, profile,
 		))
 	}
 	ctrlCmd.Env = env
@@ -275,8 +287,8 @@ func runDaemonStart(command string, userID string, queries *db.Queries) (map[str
 
 	// Check if daemon is now running for this profile
 	checkCmd := exec.Command("sh", "-c", fmt.Sprintf(
-		"MULTICA_SERVER_URL=%s /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica --profile %s daemon status 2>&1",
-		serverURL, profile,
+		"MULTICA_SERVER_URL=%s %s --profile %s daemon status 2>&1",
+		serverURL, getMulticaBinPath(), profile,
 	))
 	checkCmd.Env = env
 	checkOutput, _ := checkCmd.CombinedOutput()
@@ -415,8 +427,8 @@ func runDaemonStartDirect(userID, wsID, serverURL string, env []string, token st
 
 	// Watch the workspace for this profile
 	watchCmd := exec.Command("sh", "-c", fmt.Sprintf(
-		"MULTICA_SERVER_URL=%s MULTICA_WORKSPACE_ID=%s /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica --profile %s workspace watch %s 2>&1",
-		serverURL, wsID, profile, wsID,
+		"MULTICA_SERVER_URL=%s MULTICA_WORKSPACE_ID=%s %s --profile %s workspace watch %s 2>&1",
+		serverURL, wsID, getMulticaBinPath(), profile, wsID,
 	))
 	watchCmd.Env = env
 	watchOutput, watchErr := watchCmd.CombinedOutput()
@@ -429,8 +441,8 @@ func runDaemonStartDirect(userID, wsID, serverURL string, env []string, token st
 		export MULTICA_SERVER_URL=%s
 		export MULTICA_USER=%s
 		export MULTICA_WORKSPACE_ID=%s
-		exec /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica --profile %s daemon start --foreground
-	`, serverURL, userID, wsID, profile)
+		exec %s --profile %s daemon start --foreground
+	`, serverURL, userID, wsID, getMulticaBinPath(), profile)
 
 	startCmd := exec.Command("sh", "-c", fmt.Sprintf(
 		"setsid sh -c '%s' > /dev/null 2>&1 &",
@@ -448,8 +460,8 @@ func runDaemonStartDirect(userID, wsID, serverURL string, env []string, token st
 
 	// Check if daemon is now running
 	checkCmd := exec.Command("sh", "-c", fmt.Sprintf(
-		"MULTICA_SERVER_URL=%s /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica --profile %s daemon status 2>&1",
-		serverURL, profile,
+		"MULTICA_SERVER_URL=%s %s --profile %s daemon status 2>&1",
+		serverURL, getMulticaBinPath(), profile,
 	))
 	checkCmd.Env = env
 	checkOutput, _ := checkCmd.CombinedOutput()
@@ -478,8 +490,8 @@ func runDaemonStop(command string, userID string) (map[string]interface{}, error
 	// Use profile-based daemon stop for user isolation
 	profile := "user-" + userID[:8]
 	cmd := exec.Command("sh", "-c", fmt.Sprintf(
-		"MULTICA_SERVER_URL=%s /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica --profile %s daemon stop 2>&1",
-		serverURL, profile,
+		"MULTICA_SERVER_URL=%s %s --profile %s daemon stop 2>&1",
+		serverURL, getMulticaBinPath(), profile,
 	))
 	cmd.Env = env
 
@@ -527,8 +539,8 @@ func runMulticaAutoLogin(queries *db.Queries, userID string) (map[string]interfa
 
 	// Save the PAT to multica config using the CLI
 	// Use echo + pipe instead of here-string for better compatibility
-	cmdStr := fmt.Sprintf("echo '%s' | MULTICA_SERVER_URL=%s /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica auth login --token",
-		rawToken, os.Getenv("MULTICA_SERVER_URL"))
+	cmdStr := fmt.Sprintf("echo '%s' | MULTICA_SERVER_URL=%s %s auth login --token",
+		rawToken, os.Getenv("MULTICA_SERVER_URL"), getMulticaBinPath())
 	cmd := exec.Command("sh", "-c", cmdStr)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -552,8 +564,8 @@ func runMulticaAutoLogin(queries *db.Queries, userID string) (map[string]interfa
 	// Watch the first workspace
 	wsID := uuidToString(wsResp[0].ID)
 	watchCmd := exec.Command("sh", "-c", fmt.Sprintf(
-		"MULTICA_SERVER_URL=%s /home/ubuntu/dongxianzhi/AgentHarness/server/bin/multica workspace watch %s",
-		os.Getenv("MULTICA_SERVER_URL"), wsID,
+		"MULTICA_SERVER_URL=%s %s workspace watch %s",
+		os.Getenv("MULTICA_SERVER_URL"), getMulticaBinPath(), wsID,
 	))
 	watchOutput, err := watchCmd.CombinedOutput()
 	if err != nil {
