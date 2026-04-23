@@ -202,6 +202,27 @@ ensure_env_file() {
     log "Set DATABASE_URL in $ENV_FILE to a reachable PostgreSQL 17 + pgvector instance"
     exit 1
   fi
+
+  # S3-compatible storage (MinIO/Garage) - optional
+  if ! grep -q '^S3_BUCKET=' "$ENV_FILE" || [ -z "$(sed -n 's/^S3_BUCKET=//p' "$ENV_FILE")" ]; then
+    set_or_append S3_BUCKET "multica-uploads"
+  fi
+
+  if ! grep -q '^S3_REGION=' "$ENV_FILE" || [ -z "$(sed -n 's/^S3_REGION=//p' "$ENV_FILE")" ]; then
+    set_or_append S3_REGION "us-east-1"
+  fi
+
+  if ! grep -q '^AWS_ENDPOINT_URL=' "$ENV_FILE" || [ -z "$(sed -n 's/^AWS_ENDPOINT_URL=//p' "$ENV_FILE")" ]; then
+    set_or_append AWS_ENDPOINT_URL ""
+  fi
+
+  if ! grep -q '^AWS_ACCESS_KEY_ID=' "$ENV_FILE" || [ -z "$(sed -n 's/^AWS_ACCESS_KEY_ID=//p' "$ENV_FILE")" ]; then
+    set_or_append AWS_ACCESS_KEY_ID ""
+  fi
+
+  if ! grep -q '^AWS_SECRET_ACCESS_KEY=' "$ENV_FILE" || [ -z "$(sed -n 's/^AWS_SECRET_ACCESS_KEY=//p' "$ENV_FILE")" ]; then
+    set_or_append AWS_SECRET_ACCESS_KEY ""
+  fi
 }
 
 stop_docker_stack() {
