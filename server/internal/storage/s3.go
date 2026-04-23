@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -205,4 +206,16 @@ func (s *S3Storage) Upload(ctx context.Context, key string, data []byte, content
 	}
 	link := fmt.Sprintf("https://%s/%s", domain, key)
 	return link, nil
+}
+
+func (s *S3Storage) Download(ctx context.Context, key string) ([]byte, error) {
+	output, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("s3 GetObject: %w", err)
+	}
+	defer output.Body.Close()
+	return io.ReadAll(output.Body)
 }

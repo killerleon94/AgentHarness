@@ -59,6 +59,19 @@ func getMulticaBinPath() string {
 	if err != nil {
 		return "multica"
 	}
+	if strings.Contains(execPath, "go-build") {
+		if wd, err := os.Getwd(); err == nil {
+			localBin := filepath.Join(wd, "server", "bin", "multica")
+			if _, err := os.Stat(localBin); err == nil {
+				return localBin
+			}
+			localBin = filepath.Join(wd, "bin", "multica")
+			if _, err := os.Stat(localBin); err == nil {
+				return localBin
+			}
+		}
+		return "multica"
+	}
 	execDir := filepath.Dir(execPath)
 	return filepath.Join(execDir, "multica")
 }

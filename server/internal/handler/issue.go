@@ -22,26 +22,26 @@ import (
 
 // IssueResponse is the JSON response for an issue.
 type IssueResponse struct {
-	ID                 string                  `json:"id"`
-	WorkspaceID        string                  `json:"workspace_id"`
-	Number             int32                   `json:"number"`
-	Identifier         string                  `json:"identifier"`
-	Title              string                  `json:"title"`
-	Description        *string                 `json:"description"`
-	Status             string                  `json:"status"`
-	Priority           string                  `json:"priority"`
-	AssigneeType       *string                 `json:"assignee_type"`
-	AssigneeID         *string                 `json:"assignee_id"`
-	CreatorType        string                  `json:"creator_type"`
-	CreatorID          string                  `json:"creator_id"`
-	ParentIssueID      *string                 `json:"parent_issue_id"`
-	ProjectID          *string                 `json:"project_id"`
-	Position           float64                 `json:"position"`
-	DueDate            *string                 `json:"due_date"`
-	CreatedAt          string                  `json:"created_at"`
-	UpdatedAt          string                  `json:"updated_at"`
-	Reactions          []IssueReactionResponse `json:"reactions,omitempty"`
-	Attachments        []AttachmentResponse    `json:"attachments,omitempty"`
+	ID            string                  `json:"id"`
+	WorkspaceID   string                  `json:"workspace_id"`
+	Number        int32                   `json:"number"`
+	Identifier    string                  `json:"identifier"`
+	Title         string                  `json:"title"`
+	Description   *string                 `json:"description"`
+	Status        string                  `json:"status"`
+	Priority      string                  `json:"priority"`
+	AssigneeType  *string                 `json:"assignee_type"`
+	AssigneeID    *string                 `json:"assignee_id"`
+	CreatorType   string                  `json:"creator_type"`
+	CreatorID     string                  `json:"creator_id"`
+	ParentIssueID *string                 `json:"parent_issue_id"`
+	ProjectID     *string                 `json:"project_id"`
+	Position      float64                 `json:"position"`
+	DueDate       *string                 `json:"due_date"`
+	CreatedAt     string                  `json:"created_at"`
+	UpdatedAt     string                  `json:"updated_at"`
+	Reactions     []IssueReactionResponse `json:"reactions,omitempty"`
+	Attachments   []AttachmentResponse    `json:"attachments,omitempty"`
 }
 
 func issueToResponse(i db.Issue, issuePrefix string) IssueResponse {
@@ -242,7 +242,7 @@ func buildSearchQuery(phrase string, terms []string, queryNum int, hasNum bool, 
 	}
 
 	escapedPhrase := escapeLike(phrase)
-	phraseParam := nextArg(escapedPhrase)               // $1
+	phraseParam := nextArg(escapedPhrase) // $1
 	phraseContains := "'%' || " + phraseParam + " || '%'"
 	phraseStartsWith := phraseParam + " || '%'"
 
@@ -699,7 +699,7 @@ func (h *Handler) GetIssue(w http.ResponseWriter, r *http.Request) {
 	if err == nil && len(attachments) > 0 {
 		resp.Attachments = make([]AttachmentResponse, len(attachments))
 		for i, a := range attachments {
-			resp.Attachments[i] = h.attachmentToResponse(a)
+			resp.Attachments[i] = h.attachmentToResponse(a, uuidToString(issue.WorkspaceID))
 		}
 	}
 
@@ -728,16 +728,16 @@ func (h *Handler) ListChildIssues(w http.ResponseWriter, r *http.Request) {
 }
 
 type CreateIssueRequest struct {
-	Title              string   `json:"title"`
-	Description        *string  `json:"description"`
-	Status             string   `json:"status"`
-	Priority           string   `json:"priority"`
-	AssigneeType       *string  `json:"assignee_type"`
-	AssigneeID         *string  `json:"assignee_id"`
-	ParentIssueID      *string  `json:"parent_issue_id"`
-	ProjectID          *string  `json:"project_id"`
-	DueDate            *string  `json:"due_date"`
-	AttachmentIDs      []string `json:"attachment_ids,omitempty"`
+	Title         string   `json:"title"`
+	Description   *string  `json:"description"`
+	Status        string   `json:"status"`
+	Priority      string   `json:"priority"`
+	AssigneeType  *string  `json:"assignee_type"`
+	AssigneeID    *string  `json:"assignee_id"`
+	ParentIssueID *string  `json:"parent_issue_id"`
+	ProjectID     *string  `json:"project_id"`
+	DueDate       *string  `json:"due_date"`
+	AttachmentIDs []string `json:"attachment_ids,omitempty"`
 }
 
 func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
@@ -831,20 +831,25 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 	creatorType, actualCreatorID := h.resolveActor(r, creatorID, workspaceID)
 
 	issue, err := qtx.CreateIssue(r.Context(), db.CreateIssueParams{
-		WorkspaceID:        parseUUID(workspaceID),
-		Title:              req.Title,
-		Description:        ptrToText(req.Description),
-		Status:             status,
-		Priority:           priority,
-		AssigneeType:       assigneeType,
-		AssigneeID:         assigneeID,
-		CreatorType:        creatorType,
-		CreatorID:          parseUUID(actualCreatorID),
-		ParentIssueID:      parentIssueID,
-		Position:           0,
-		DueDate:            dueDate,
-		Number:             issueNumber,
-		ProjectID:          func() pgtype.UUID { if req.ProjectID != nil { return parseUUID(*req.ProjectID) }; return pgtype.UUID{} }(),
+		WorkspaceID:   parseUUID(workspaceID),
+		Title:         req.Title,
+		Description:   ptrToText(req.Description),
+		Status:        status,
+		Priority:      priority,
+		AssigneeType:  assigneeType,
+		AssigneeID:    assigneeID,
+		CreatorType:   creatorType,
+		CreatorID:     parseUUID(actualCreatorID),
+		ParentIssueID: parentIssueID,
+		Position:      0,
+		DueDate:       dueDate,
+		Number:        issueNumber,
+		ProjectID: func() pgtype.UUID {
+			if req.ProjectID != nil {
+				return parseUUID(*req.ProjectID)
+			}
+			return pgtype.UUID{}
+		}(),
 	})
 	if err != nil {
 		slog.Warn("create issue failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
@@ -874,7 +879,7 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 		if err == nil && len(attachments) > 0 {
 			resp.Attachments = make([]AttachmentResponse, len(attachments))
 			for i, a := range attachments {
-				resp.Attachments[i] = h.attachmentToResponse(a)
+				resp.Attachments[i] = h.attachmentToResponse(a, uuidToString(issue.WorkspaceID))
 			}
 		}
 	}
@@ -893,16 +898,16 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 }
 
 type UpdateIssueRequest struct {
-	Title              *string  `json:"title"`
-	Description        *string  `json:"description"`
-	Status             *string  `json:"status"`
-	Priority           *string  `json:"priority"`
-	AssigneeType       *string  `json:"assignee_type"`
-	AssigneeID         *string  `json:"assignee_id"`
-	Position           *float64 `json:"position"`
-	DueDate            *string  `json:"due_date"`
-	ParentIssueID      *string  `json:"parent_issue_id"`
-	ProjectID          *string  `json:"project_id"`
+	Title         *string  `json:"title"`
+	Description   *string  `json:"description"`
+	Status        *string  `json:"status"`
+	Priority      *string  `json:"priority"`
+	AssigneeType  *string  `json:"assignee_type"`
+	AssigneeID    *string  `json:"assignee_id"`
+	Position      *float64 `json:"position"`
+	DueDate       *string  `json:"due_date"`
+	ParentIssueID *string  `json:"parent_issue_id"`
+	ProjectID     *string  `json:"project_id"`
 }
 
 func (h *Handler) UpdateIssue(w http.ResponseWriter, r *http.Request) {

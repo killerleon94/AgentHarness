@@ -93,4 +93,4 @@ jobs:
 
       - name: Deploy native services
         run: |
-          ssh -i ~/.ssh/tencent.pem ubuntu@101.43.60.21 "RELEASE_DIR=/tmp/agentharness-release APP_DIR=/opt/agentharness APP_PORT=9997 BACKEND_PORT=8080 APP_VERSION=0.2.2 GIT_COMMIT=${GITHUB_SHA} bash /tmp/agentharness-release/scripts/deploy_remote_native.sh"
+          ssh -i ~/.ssh/tencent.pem ubuntu@101.43.60.21 "RELEASE_DIR=/tmp/agentharness-release APP_DIR=/opt/agentharness APP_PORT=9997 BACKEND_PORT=8080 APP_VERSION=0.3.0 GIT_COMMIT=${GITHUB_SHA} bash /tmp/agentharness-release/scripts/deploy_remote_native.sh"

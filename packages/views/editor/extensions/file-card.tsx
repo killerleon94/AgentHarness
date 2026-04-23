@@ -13,6 +13,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { FileText, Loader2, Download } from "lucide-react";
+import { api } from "@multica/core/api";
 
 
 // ---------------------------------------------------------------------------
@@ -27,16 +28,41 @@ export function isCdnUrl(url: string): boolean {
     const u = new URL(url);
     return (
       u.hostname.endsWith(".copilothub.ai") ||
-      u.hostname.endsWith(".amazonaws.com")
+      u.hostname.endsWith(".amazonaws.com") ||
+      u.hostname === "localhost" ||
+      u.hostname === "127.0.0.1" ||
+      u.hostname.endsWith(".s3.garage.localhost") ||
+      url.includes("/multica-uploads/") ||
+      url.includes("/s3-")
     );
   } catch {
     return false;
   }
 }
 
+/** Check if a URL is a proxy download URL for attachments. */
+function isProxyUrl(url: string): boolean {
+  return /^\/api\/attachments\/[a-f0-9-]+\/file(\?.*)?$/i.test(url);
+}
+
 /** Check if a CDN URL is a non-image file that should render as a file card. */
 export function isFileCardUrl(url: string): boolean {
-  return isCdnUrl(url) && !IMAGE_EXTS.test(new URL(url).pathname);
+  if (isProxyUrl(url)) return true;
+  if (IMAGE_EXTS.test(url)) return false;
+  try {
+    const u = new URL(url);
+    return (
+      u.hostname.endsWith(".copilothub.ai") ||
+      u.hostname.endsWith(".amazonaws.com") ||
+      u.hostname === "localhost" ||
+      u.hostname === "127.0.0.1" ||
+      u.hostname.endsWith(".s3.garage.localhost") ||
+      url.includes("/multica-uploads/") ||
+      url.includes("/s3-")
+    );
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -52,8 +78,21 @@ function FileCardView({ node }: NodeViewProps) {
   const filename = (node.attrs.filename as string) || "";
   const uploading = node.attrs.uploading as boolean;
 
-  const openFile = () => {
-    window.open(href, "_blank", "noopener,noreferrer");
+  const downloadFile = async () => {
+    try {
+      console.log("Downloading:", href);
+      const blob = await api.downloadBlob(href);
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Failed to download file:", err);
+    }
   };
 
   return (
@@ -78,7 +117,7 @@ function FileCardView({ node }: NodeViewProps) {
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              openFile();
+              downloadFile();
             }}
           >
             <Download className="size-3.5" />

@@ -48,7 +48,7 @@ type AttachmentResponse struct {
 	CreatedAt    string  `json:"created_at"`
 }
 
-func (h *Handler) attachmentToResponse(a db.Attachment) AttachmentResponse {
+func (h *Handler) attachmentToResponse(a db.Attachment, workspaceID ...string) AttachmentResponse {
 	resp := AttachmentResponse{
 		ID:           uuidToString(a.ID),
 		WorkspaceID:  uuidToString(a.WorkspaceID),
@@ -63,6 +63,8 @@ func (h *Handler) attachmentToResponse(a db.Attachment) AttachmentResponse {
 	}
 	if h.CFSigner != nil {
 		resp.DownloadURL = h.CFSigner.SignedURL(a.Url, time.Now().Add(30*time.Minute))
+	} else if len(workspaceID) > 0 {
+		resp.DownloadURL = fmt.Sprintf("/api/attachments/%s/file?workspace_id=%s", uuidToString(a.ID), workspaceID[0])
 	}
 	if a.IssueID.Valid {
 		s := uuidToString(a.IssueID)
@@ -92,7 +94,7 @@ func (h *Handler) groupAttachments(r *http.Request, commentIDs []pgtype.UUID) ma
 	grouped := make(map[string][]AttachmentResponse, len(commentIDs))
 	for _, a := range attachments {
 		cid := uuidToString(a.CommentID)
-		grouped[cid] = append(grouped[cid], h.attachmentToResponse(a))
+		grouped[cid] = append(grouped[cid], h.attachmentToResponse(a, workspaceID))
 	}
 	return grouped
 }
@@ -211,7 +213,7 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 			// S3 upload succeeded but DB record failed — still return the link
 			// so the file is usable. Log the error for investigation.
 		} else {
-			writeJSON(w, http.StatusOK, h.attachmentToResponse(att))
+			writeJSON(w, http.StatusOK, h.attachmentToResponse(att, workspaceID))
 			return
 		}
 	}
@@ -246,7 +248,7 @@ func (h *Handler) ListAttachments(w http.ResponseWriter, r *http.Request) {
 
 	resp := make([]AttachmentResponse, len(attachments))
 	for i, a := range attachments {
-		resp[i] = h.attachmentToResponse(a)
+		resp[i] = h.attachmentToResponse(a, uuidToString(issue.WorkspaceID))
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -272,7 +274,49 @@ func (h *Handler) GetAttachmentByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, h.attachmentToResponse(att))
+	writeJSON(w, http.StatusOK, h.attachmentToResponse(att, workspaceID))
+}
+
+// ---------------------------------------------------------------------------
+// ServeAttachmentFile — GET /api/attachments/{id}/file
+// ---------------------------------------------------------------------------
+
+func (h *Handler) ServeAttachmentFile(w http.ResponseWriter, r *http.Request) {
+	if h.Storage == nil {
+		writeError(w, http.StatusServiceUnavailable, "file storage not configured")
+		return
+	}
+
+	attachmentID := chi.URLParam(r, "id")
+	workspaceID := resolveWorkspaceID(r)
+	if workspaceID == "" {
+		workspaceID = r.URL.Query().Get("workspace_id")
+	}
+	if workspaceID == "" {
+		writeError(w, http.StatusBadRequest, "workspace_id is required")
+		return
+	}
+
+	att, err := h.Queries.GetAttachment(r.Context(), db.GetAttachmentParams{
+		ID:          parseUUID(attachmentID),
+		WorkspaceID: parseUUID(workspaceID),
+	})
+	if err != nil {
+		writeError(w, http.StatusNotFound, "attachment not found")
+		return
+	}
+
+	key := h.Storage.KeyFromURL(att.Url)
+	data, err := h.Storage.Download(r.Context(), key)
+	if err != nil {
+		slog.Error("attachment download failed", "attachment_id", attachmentID, "error", err)
+		writeError(w, http.StatusInternalServerError, "download failed")
+		return
+	}
+
+	w.Header().Set("Content-Type", att.ContentType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	w.Write(data)
 }
 
 // ---------------------------------------------------------------------------

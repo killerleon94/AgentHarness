@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"archive/zip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -225,6 +226,20 @@ func (d *Daemon) serveHealth(ctx context.Context, ln net.Listener, startedAt tim
 			return
 		}
 		if info.IsDir() {
+			// Check if zip download is requested
+			if r.URL.Query().Get("zip") == "1" {
+				w.Header().Set("Content-Type", "application/zip")
+				w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.zip"`, info.Name()))
+				zipWriter := zip.NewWriter(w)
+				defer zipWriter.Close()
+				err := addFilesToZip(zipWriter, absPath, filepath.Base(absPath))
+				if err != nil {
+					slog.Error("failed to create zip", "error", err)
+					http.Error(w, "failed to create zip", http.StatusInternalServerError)
+					return
+				}
+				return
+			}
 			http.Error(w, "directory listing not supported", http.StatusForbidden)
 			return
 		}
@@ -247,4 +262,33 @@ func (d *Daemon) serveHealth(ctx context.Context, ln net.Listener, startedAt tim
 	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 		d.logger.Warn("health server error", "error", err)
 	}
+}
+
+func addFilesToZip(zipWriter *zip.Writer, basePath, baseName string) error {
+	return filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		header, _ := zip.FileInfoHeader(info)
+		if header == nil {
+			return nil
+		}
+		relPath := strings.TrimPrefix(path, basePath)
+		relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
+		header.Name = filepath.Join(baseName, relPath)
+		writer, err := zipWriter.Create(header.Name)
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = io.Copy(writer, file)
+		return err
+	})
 }

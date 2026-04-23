@@ -25,12 +25,15 @@ export function preprocessMarkdown(markdown: string): string {
 
 /**
  * Convert standalone `[name](cdnUrl)` lines into HTML that Tiptap's fileCard
- * parseHTML can recognise. Only matches non-image CDN URLs on their own line.
+ * parseHTML can recognise. Handles both CDN URLs (http://...) and proxy URLs (/api/...).
  *
- * Input:  `[report.pdf](https://multica-static.copilothub.ai/xxx.pdf)`
- * Output: `<div data-type="fileCard" data-href="url" data-filename="report.pdf"></div>`
+ * CDN Input:  `[report.pdf](https://multica-static.copilothub.ai/xxx.pdf)`
+ * CDN Output: `<div data-type="fileCard" data-href="url" data-filename="report.pdf"></div>`
+ *
+ * Proxy Input: `[report.pdf](/api/attachments/xxx/file?workspace_id=yyy)`
+ * Proxy Output: `<div data-type="fileCard" data-href="url" data-filename="report.pdf"></div>`
  */
-const FILE_LINK_LINE = /^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/;
+const FILE_LINK_LINE = /^\[([^\]]+)\]\(([^)]+)\)$/;
 
 function preprocessFileCards(markdown: string): string {
   return markdown

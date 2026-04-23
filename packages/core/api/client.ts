@@ -145,6 +145,34 @@ export class ApiClient {
     return res.json() as Promise<T>;
   }
 
+  async downloadBlob(path: string): Promise<Blob> {
+    const rid = crypto.randomUUID().slice(0, 8);
+    const start = Date.now();
+
+    const headers: Record<string, string> = {
+      "X-Request-ID": rid,
+      ...this.authHeaders(),
+    };
+
+    this.logger.info(`→ GET ${path} (download)`, { rid });
+
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method: "GET",
+      headers,
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) this.handleUnauthorized();
+      const message = await this.parseErrorMessage(res, `Download failed: ${res.status}`);
+      this.logger.error(`← ${res.status} ${path}`, { rid, duration: `${Date.now() - start}ms`, error: message });
+      throw new Error(message);
+    }
+
+    this.logger.info(`← ${res.status} ${path}`, { rid, duration: `${Date.now() - start}ms` });
+    return res.blob();
+  }
+
   // Auth
   async sendCode(email: string): Promise<void> {
     await this.fetch("/auth/send-code", {
