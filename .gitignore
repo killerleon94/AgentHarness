@@ -26,3 +26,5 @@ docs/
 graphify*
 
 .venv/
+
+server/bin/
