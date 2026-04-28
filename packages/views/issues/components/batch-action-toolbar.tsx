@@ -19,7 +19,9 @@ import { useIssueSelectionStore } from "@multica/core/issues/stores/selection-st
 import { useBatchUpdateIssues, useBatchDeleteIssues } from "@multica/core/issues/mutations";
 import { StatusPicker, PriorityPicker, AssigneePicker } from "./pickers";
 
-export function BatchActionToolbar() {
+type TranslateFn = (key: string, fallback: string) => string;
+
+export function BatchActionToolbar({ t = (_, fb) => fb }: { t?: TranslateFn }) {
   const selectedIds = useIssueSelectionStore((s) => s.selectedIds);
   const clear = useIssueSelectionStore((s) => s.clear);
   const count = selectedIds.size;
@@ -39,9 +41,9 @@ export function BatchActionToolbar() {
   const handleBatchUpdate = async (updates: Partial<UpdateIssueRequest>) => {
     try {
       await batchUpdate.mutateAsync({ ids, updates });
-      toast.success(`Updated ${count} issue${count > 1 ? "s" : ""}`);
+      toast.success(t('batchAction.updated', `Updated ${count} issue${count > 1 ? "s" : ""}`));
     } catch {
-      toast.error("Failed to update issues");
+      toast.error(t('batchAction.updateFailed', 'Failed to update issues'));
     }
   };
 
@@ -49,9 +51,9 @@ export function BatchActionToolbar() {
     try {
       await batchDelete.mutateAsync(ids);
       clear();
-      toast.success(`Deleted ${count} issue${count > 1 ? "s" : ""}`);
+      toast.success(t('batchAction.deleted', `Deleted ${count} issue${count > 1 ? "s" : ""}`));
     } catch {
-      toast.error("Failed to delete issues");
+      toast.error(t('batchAction.deleteFailed', 'Failed to delete issues'));
     } finally {
       setDeleteOpen(false);
     }
@@ -59,15 +61,15 @@ export function BatchActionToolbar() {
 
   return (
     <>
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-lg border bg-background px-2 py-1.5 shadow-lg">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-xl border bg-background/95 backdrop-blur-sm px-2 py-1.5 shadow-xl shadow-slate-200/30 dark:shadow-slate-950/50">
         <div className="flex items-center gap-1.5 pl-1 pr-2 border-r mr-1">
-          <span className="text-sm font-medium">{count} selected</span>
+          <span className="text-sm font-semibold">{count} {t('batchAction.selected', 'selected')}</span>
           <button
             type="button"
             onClick={clear}
-            className="rounded p-0.5 hover:bg-accent transition-colors"
+            className="rounded p-1 hover:bg-muted/50 transition-colors cursor-pointer"
           >
-            <X className="size-3.5 text-muted-foreground" />
+            <X className="size-4 text-muted-foreground" />
           </button>
         </div>
 
@@ -77,9 +79,10 @@ export function BatchActionToolbar() {
           onUpdate={handleBatchUpdate}
           open={statusOpen}
           onOpenChange={setStatusOpen}
-          triggerRender={<Button variant="ghost" size="sm" disabled={loading} />}
-          trigger="Status"
+          triggerRender={<Button variant="ghost" size="sm" disabled={loading} className="cursor-pointer" />}
+          trigger={t('common.status', 'Status')}
           align="center"
+          t={t}
         />
 
         {/* Priority */}
@@ -88,9 +91,10 @@ export function BatchActionToolbar() {
           onUpdate={handleBatchUpdate}
           open={priorityOpen}
           onOpenChange={setPriorityOpen}
-          triggerRender={<Button variant="ghost" size="sm" disabled={loading} />}
-          trigger="Priority"
+          triggerRender={<Button variant="ghost" size="sm" disabled={loading} className="cursor-pointer" />}
+          trigger={t('common.priority', 'Priority')}
           align="center"
+          t={t}
         />
 
         {/* Assignee */}
@@ -100,9 +104,10 @@ export function BatchActionToolbar() {
           onUpdate={handleBatchUpdate}
           open={assigneeOpen}
           onOpenChange={setAssigneeOpen}
-          triggerRender={<Button variant="ghost" size="sm" disabled={loading} />}
-          trigger="Assignee"
+          triggerRender={<Button variant="ghost" size="sm" disabled={loading} className="cursor-pointer" />}
+          trigger={t('common.assignee', 'Assignee')}
           align="center"
+          t={t}
         />
 
         {/* Delete */}
@@ -111,10 +116,10 @@ export function BatchActionToolbar() {
           size="sm"
           disabled={loading}
           onClick={() => setDeleteOpen(true)}
-          className="text-destructive hover:text-destructive"
+          className="text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
         >
-          <Trash2 className="size-3.5 mr-1" />
-          Delete
+          <Trash2 className="size-4 mr-1" />
+          {t('batchAction.delete', 'Delete')}
         </Button>
       </div>
 
@@ -122,20 +127,19 @@ export function BatchActionToolbar() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {count} issue{count > 1 ? "s" : ""}?
+              {t('batchAction.deleteTitle', `Delete ${count} issue${count > 1 ? "s" : ""}?`)}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              selected issue{count > 1 ? "s" : ""} and all associated data.
+              {t('batchAction.deleteDescription', 'This action cannot be undone. This will permanently delete the selected issue' + (count > 1 ? "s" : "") + ' and all associated data.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="cursor-pointer">{t('batchAction.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBatchDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-rose-600 text-white hover:bg-rose-700 cursor-pointer"
             >
-              Delete
+              {t('batchAction.delete', 'Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -143,4 +147,3 @@ export function BatchActionToolbar() {
     </>
   );
 }
-

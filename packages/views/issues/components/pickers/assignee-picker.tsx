@@ -87,7 +87,7 @@ export function AssigneePicker({
   const triggerLabel =
     assigneeType && assigneeId
       ? getActorName(assigneeType, assigneeId)
-      : translate('issueDetail.assignee.unassigned', 'Unassigned');
+      : translate('common.unassigned', 'Unassigned');
 
   return (
     <PropertyPicker
@@ -110,7 +110,7 @@ export function AssigneePicker({
             <span className="truncate">{triggerLabel}</span>
           </>
         ) : (
-          <span className="text-muted-foreground">{translate('issueDetail.assignee.unassigned', 'Unassigned')}</span>
+          <span className="text-muted-foreground">{translate('common.unassigned', 'Unassigned')}</span>
         )
       }
     >
@@ -123,12 +123,12 @@ export function AssigneePicker({
         }}
       >
         <UserMinus className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-muted-foreground">{translate('issueDetail.assignee.unassigned', 'Unassigned')}</span>
+        <span className="text-muted-foreground">{translate('common.unassigned', 'Unassigned')}</span>
       </PickerItem>
 
       {/* Members */}
       {filteredMembers.length > 0 && (
-        <PickerSection label={translate('issuesHeader.members', 'Members')}>
+        <PickerSection label={translate('common.members', 'Members')}>
           {filteredMembers.map((m) => (
             <PickerItem
               key={m.user_id}
@@ -150,7 +150,7 @@ export function AssigneePicker({
 
       {/* Agents */}
       {filteredAgents.length > 0 && (
-        <PickerSection label={translate('issuesHeader.agents', 'Agents')}>
+        <PickerSection label={translate('common.agents', 'Agents')}>
           {filteredAgents.map((a) => {
             const allowed = canAssignAgent(a, user?.id, memberRole);
             return (

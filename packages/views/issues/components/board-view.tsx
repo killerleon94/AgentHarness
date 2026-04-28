@@ -289,7 +289,8 @@ export function BoardView({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-1 min-h-0 gap-4 overflow-x-auto p-4">
+      {/* Board container - horizontal scroll */}
+      <div className="flex gap-4 overflow-x-auto p-4">
         {visibleStatuses.map((status) => (
           <BoardColumn
             key={status}
@@ -298,7 +299,7 @@ export function BoardView({
             issueMap={issueMapRef.current}
             childProgressMap={childProgressMap}
             totalCount={status === "done" ? displayDoneTotal : undefined}
-            t={t} // 传递 t 给 BoardColumn
+            t={t}
             footer={
               status === "done" && hasMore ? (
                 <InfiniteScrollSentinel
@@ -314,7 +315,7 @@ export function BoardView({
           <HiddenColumnsPanel
             hiddenStatuses={hiddenStatuses}
             issues={allIssues}
-            t={t} // 传递 t 给 HiddenColumnsPanel
+            t={t}
           />
         )}
       </div>

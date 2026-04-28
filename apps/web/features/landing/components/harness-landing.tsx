@@ -32,6 +32,9 @@ import {
   GitHubMark,
   OpenClawLogo,
   OpenCodeLogo,
+  TraeLogo,
+  KimiLogo,
+  HermesLogo,
   githubUrl,
 } from "./shared";
 
@@ -264,7 +267,7 @@ const content: Record<Locale, LandingContent> = {
       backToTop: "返回顶部",
     },
     hero: {
-      eyebrow: " 元枢智能调度中枢",
+      eyebrow: " 天驱智能调度中枢",
       line1: "未来的团队协作里，",
       line2: "伙伴不止是人类。",
       description:
@@ -384,10 +387,13 @@ const content: Record<Locale, LandingContent> = {
 };
 
 const runtimeLogos = [
-  { name: "Claw Code", icon: ClaudeCodeLogo },
+  { name: "Claude Code", icon: ClaudeCodeLogo },
   { name: "Codex", icon: CodexLogo },
   { name: "OpenClaw", icon: OpenClawLogo },
   { name: "OpenCode", icon: OpenCodeLogo },
+  { name: "Trae", icon: TraeLogo },
+  { name: "Kimi", icon: KimiLogo },
+  { name: "Hermes", icon: HermesLogo },
 ] as const;
 
 export function HarnessLanding() {

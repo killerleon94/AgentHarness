@@ -1,20 +1,17 @@
 "use client";
 
-import { useCallback, memo } from "react";
+import { memo } from "react";
 import { AppLink } from "../../navigation";
 import { useSortable, defaultAnimateLayoutChanges } from "@dnd-kit/sortable";
 import type { AnimateLayoutChanges } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { toast } from "sonner";
-import type { Issue, UpdateIssueRequest } from "@multica/core/types";
+import type { Issue } from "@multica/core/types";
 import { CalendarDays } from "lucide-react";
 import { ActorAvatar } from "../../common/actor-avatar";
-import { useUpdateIssue } from "@multica/core/issues/mutations";
 import { PriorityIcon } from "./priority-icon";
-import { PriorityPicker, AssigneePicker, DueDatePicker } from "./pickers";
 import { PRIORITY_CONFIG } from "@multica/core/issues/config";
-import { useViewStore } from "@multica/core/issues/stores/view-store-context";
 import { ProgressRing } from "./progress-ring";
+import { useViewStore } from "@multica/core/issues/stores/view-store-context";
 import type { ChildProgress } from "./list-row";
 import type { IssuePriority } from "@multica/core/types";
 
@@ -38,159 +35,80 @@ function formatDate(date: string): string {
   });
 }
 
-/** Stops event from bubbling to Link/drag handlers */
-function PickerWrapper({ children }: { children: React.ReactNode }) {
-  const stop = (e: React.SyntheticEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-  };
-  return (
-    <div onClick={stop} onMouseDown={stop} onPointerDown={stop}>
-      {children}
-    </div>
-  );
-}
-
 export const BoardCardContent = memo(function BoardCardContent({
   issue,
-  editable = false,
   childProgress,
   t,
 }: {
   issue: Issue;
-  editable?: boolean;
   childProgress?: ChildProgress;
   t?: TranslateFn;
 }) {
-  const storeProperties = useViewStore((s) => s.cardProperties);
+  const cardProperties = useViewStore((s) => s.cardProperties);
   const priorityCfg = PRIORITY_CONFIG[issue.priority];
   const defaultT = (_key: string, fallback: string) => fallback;
   const translate = t || defaultT;
 
-  const updateIssueMutation = useUpdateIssue();
-  const handleUpdate = useCallback(
-    (updates: Partial<UpdateIssueRequest>) => {
-      updateIssueMutation.mutate(
-        { id: issue.id, ...updates },
-        { onError: () => toast.error("Failed to update issue") },
-      );
-    },
-    [issue.id, updateIssueMutation],
-  );
+  const showPriority = cardProperties.priority && issue.priority !== 'none';
+  const showDueDate = cardProperties.dueDate && issue.due_date;
+  const showAssignee = cardProperties.assignee && issue.assignee_type && issue.assignee_id;
 
-  const showPriority = storeProperties.priority;
-  const showDescription = storeProperties.description && issue.description;
-  const showAssignee = storeProperties.assignee && issue.assignee_type && issue.assignee_id;
-  const showDueDate = storeProperties.dueDate && issue.due_date;
+  const hasBottomRow = showPriority || showDueDate || childProgress || showAssignee;
 
   return (
-    <div className="rounded-lg border bg-card p-3.5 shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] transition-shadow group-hover:shadow-sm">
-      {/* Row 1: Identifier */}
-      <p className="text-xs text-muted-foreground">{issue.identifier}</p>
+    <div className="group/card relative rounded-xl bg-background border border-border/40 p-3 shadow-sm hover:shadow-md hover:border-border/60 transition-all cursor-pointer">
+      {/* Priority stripe */}
+      <div className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full ${priorityCfg.dotColor}`} />
+      
+      {/* Identifier */}
+      <p className="text-[10px] font-semibold text-muted-foreground/40 tracking-wider uppercase mb-1">
+        {issue.identifier}
+      </p>
 
-      {/* Row 2: Title */}
-      <p className="mt-1 text-sm font-medium leading-snug line-clamp-2">
+      {/* Title */}
+      <p className="text-sm font-medium leading-snug text-foreground line-clamp-2 mb-2">
         {issue.title}
       </p>
 
-      {/* Sub-issue progress */}
-      {childProgress && (
-        <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5">
-          <ProgressRing done={childProgress.done} total={childProgress.total} size={14} />
-          <span className="text-[11px] text-muted-foreground tabular-nums font-medium">
-            {childProgress.done}/{childProgress.total}
-          </span>
-        </div>
-      )}
-
-      {/* Description */}
-      {showDescription && (
-        <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
-          {issue.description}
-        </p>
-      )}
-
-      {/* Row 3: Assignee, priority badge, due date */}
-      {(showAssignee || showPriority || showDueDate) && (
-        <div className="mt-3 flex items-center gap-2">
-          {showAssignee &&
-            (editable ? (
-              <PickerWrapper>
-                <AssigneePicker
-                  assigneeType={issue.assignee_type}
-                  assigneeId={issue.assignee_id}
-                  onUpdate={handleUpdate}
-                  trigger={
-                    <ActorAvatar
-                      actorType={issue.assignee_type!}
-                      actorId={issue.assignee_id!}
-                      size={22}
-                    />
-                  }
-                />
-              </PickerWrapper>
-            ) : (
-              <ActorAvatar
-                actorType={issue.assignee_type!}
-                actorId={issue.assignee_id!}
-                size={22}
-              />
-            ))}
-          {showPriority &&
-            (editable ? (
-              <PickerWrapper>
-                <PriorityPicker
-                  priority={issue.priority}
-                  onUpdate={handleUpdate}
-                  t={translate}
-                  trigger={
-                    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${priorityCfg.badgeBg} ${priorityCfg.badgeText}`}>
-                      <PriorityIcon priority={issue.priority} className="h-3 w-3" inheritColor />
-                      {translate(`board.issues.${getPriorityDictKey(issue.priority)}`, priorityCfg.label)}
-                    </span>
-                  }
-                />
-              </PickerWrapper>
-            ) : (
-              <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${priorityCfg.badgeBg} ${priorityCfg.badgeText}`}>
-                <PriorityIcon priority={issue.priority} className="h-3 w-3" inheritColor />
-                {translate(`board.issues.${getPriorityDictKey(issue.priority)}`, priorityCfg.label)}
-              </span>
-            ))}
+      {/* Bottom row */}
+      {hasBottomRow && (
+        <div className="flex items-center gap-2 pt-1.5 border-t border-border/30">
+          {showPriority && (
+            <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${priorityCfg.badgeBg} ${priorityCfg.badgeText}`}>
+              <PriorityIcon priority={issue.priority} className="h-3 w-3" inheritColor />
+              {translate(`board.issues.${getPriorityDictKey(issue.priority)}`, priorityCfg.label)}
+            </span>
+          )}
+          
           {showDueDate && (
-            <div className="ml-auto">
-              {editable ? (
-                <PickerWrapper>
-                  <DueDatePicker
-                    dueDate={issue.due_date}
-                    onUpdate={handleUpdate}
-                    trigger={
-                      <span
-                        className={`flex items-center gap-1 text-xs ${
-                          new Date(issue.due_date!) < new Date()
-                            ? "text-destructive"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        <CalendarDays className="size-3" />
-                        {formatDate(issue.due_date!)}
-                      </span>
-                    }
-                  />
-                </PickerWrapper>
-              ) : (
-                <span
-                  className={`flex items-center gap-1 text-xs ${
-                    new Date(issue.due_date!) < new Date()
-                      ? "text-destructive"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  <CalendarDays className="size-3" />
-                  {formatDate(issue.due_date!)}
-                </span>
-              )}
+            <span
+              className={`flex items-center gap-1 text-[10px] font-medium ml-auto ${
+                new Date(issue.due_date!) < new Date()
+                  ? "text-rose-500"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <CalendarDays className="size-3" />
+              {formatDate(issue.due_date!)}
+            </span>
+          )}
+
+          {childProgress && (
+            <div className="flex items-center gap-1 ml-auto">
+              <ProgressRing done={childProgress.done} total={childProgress.total} size={10} />
+              <span className="text-[10px] text-muted-foreground tabular-nums font-medium">
+                {childProgress.done}/{childProgress.total}
+              </span>
             </div>
+          )}
+
+          {showAssignee && (
+            <ActorAvatar
+              actorType={issue.assignee_type!}
+              actorId={issue.assignee_id!}
+              size={20}
+              className="ring-1 ring-background shadow-sm"
+            />
           )}
         </div>
       )}
@@ -229,13 +147,13 @@ export const DraggableBoardCard = memo(function DraggableBoardCard({ issue, chil
       style={style}
       {...attributes}
       {...listeners}
-      className={isDragging ? "opacity-30" : ""}
+      className={`group/drag transition-all duration-200 ${isDragging ? "opacity-60 scale-105 z-50" : ""}`}
     >
       <AppLink
         href={`/issues/${issue.id}`}
-        className={`group block transition-colors ${isDragging ? "pointer-events-none" : ""}`}
+        className={`block ${isDragging ? "pointer-events-none" : ""}`}
       >
-        <BoardCardContent issue={issue} editable childProgress={childProgress} t={t} />
+        <BoardCardContent issue={issue} childProgress={childProgress} t={t} />
       </AppLink>
     </div>
   );

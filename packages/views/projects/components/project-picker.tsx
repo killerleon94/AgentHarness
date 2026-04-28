@@ -37,29 +37,29 @@ export function ProjectPicker({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={triggerRender ? undefined : "flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 hover:bg-accent/30 transition-colors overflow-hidden"}
+        className={triggerRender ? undefined : "flex items-center gap-1.5 cursor-pointer rounded-lg px-2 py-1 -mx-2 hover:bg-muted/50 transition-all duration-200"}
         render={triggerRender}
       >
-        <FolderKanban className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        <span className="truncate">{current ? current.title : translate('issuesHeader.noProject', 'No project')}</span>
+        <FolderKanban className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="truncate text-sm">{current ? current.title : translate('common.noProject', 'No project')}</span>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={align} className="w-52">
+      <DropdownMenuContent align={align} className="w-56 p-1.5 shadow-xl shadow-slate-200/20 dark:shadow-slate-950/40 rounded-xl border-border/60">
         {projects.map((p) => (
-          <DropdownMenuItem key={p.id} onClick={() => onUpdate({ project_id: p.id })}>
-            <span className="mr-1">{p.icon || "📁"}</span>
+          <DropdownMenuItem key={p.id} onClick={() => onUpdate({ project_id: p.id })} className="cursor-pointer rounded-lg px-2.5 py-2 text-sm">
+            <span className="mr-2">{p.icon || <FolderKanban className="h-3.5 w-3.5" />}</span>
             <span className="truncate">{p.title}</span>
-            {p.id === projectId && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
+            {p.id === projectId && <Check className="ml-auto h-4 w-4 shrink-0 text-primary" />}
           </DropdownMenuItem>
         ))}
         {projects.length > 0 && projectId && <DropdownMenuSeparator />}
         {projectId && (
-          <DropdownMenuItem onClick={() => onUpdate({ project_id: null })}>
-            <X className="h-3.5 w-3.5 text-muted-foreground" />
-            {translate('projects.detail.removeFromProject', 'Remove from project')}
+          <DropdownMenuItem onClick={() => onUpdate({ project_id: null })} className="cursor-pointer rounded-lg px-2.5 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30">
+            <X className="h-4 w-4 mr-2 text-rose-500" />
+            {translate('common.removeFromProject', 'Remove from project')}
           </DropdownMenuItem>
         )}
         {projects.length === 0 && (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">{translate('projects.emptyState.title', 'No projects yet')}</div>
+          <div className="px-3 py-4 text-center text-xs text-muted-foreground/50">{translate('projects.emptyState.title', 'No projects yet')}</div>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

@@ -199,7 +199,7 @@ export function IssuesPage({ t: tProp, headerActions }: IssuesPageProps = {}) {
             )}
           </div>
         )}
-        {viewMode === "list" && <BatchActionToolbar />}
+        {viewMode === "list" && <BatchActionToolbar t={t} />}
       </ViewStoreProvider>
     </div>
   );

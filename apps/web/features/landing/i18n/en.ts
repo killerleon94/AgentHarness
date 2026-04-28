@@ -566,6 +566,10 @@ export const en: LandingDict = {
     assignee: "Assignee",
     creator: "Creator",
     project: "Project",
+    members: "Members",
+    agents: "Agents",
+    noProject: "No project",
+    removeFromProject: "Remove from project",
     searchPlaceholder: "Search...",
     actions: {
       cancel: "Cancel",
@@ -613,6 +617,7 @@ export const en: LandingDict = {
     placeholders: {
       title: "Issue title",
       description: "Add description...",
+      reply: "Leave a reply...",
     },
     labels: {
       subIssueOf: "Sub-issue of",
@@ -769,6 +774,7 @@ export const en: LandingDict = {
     },
   },
   issuesHeader: {
+    newIssue: "New Issue",
     filter: "Filter",
     displaySettings: "Display settings",
     ordering: "Ordering",
@@ -786,6 +792,11 @@ export const en: LandingDict = {
     noProject: "No project",
     issue: "issue",
     issues: "issues",
+    stats: {
+      inProgress: "In Progress",
+      inReview: "In Review",
+      done: "Done",
+    },
     scopes: {
       all: { label: "All", description: "All issues in this workspace" },
       members: {

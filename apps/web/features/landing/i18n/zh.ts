@@ -575,6 +575,10 @@ export const zh: LandingDict = {
     assignee: "指派人",
     creator: "创建人",
     project: "项目",
+    members: "成员",
+    agents: "智能体",
+    noProject: "无项目",
+    removeFromProject: "从项目中移除",
     searchPlaceholder: "搜索...",
     actions: {
       cancel: "取消",
@@ -620,6 +624,7 @@ export const zh: LandingDict = {
     placeholders: {
       title: "问题标题",
       description: "添加描述...",
+      reply: "留下回复...",
     },
     labels: {
       subIssueOf: "子问题属于",
@@ -765,6 +770,7 @@ export const zh: LandingDict = {
     },
   },
   issuesHeader: {
+    newIssue: "新建问题",
     filter: "筛选",
     displaySettings: "显示设置",
     ordering: "排序",
@@ -782,6 +788,11 @@ export const zh: LandingDict = {
     noProject: "无项目",
     issue: "个问题",
     issues: "个问题",
+    stats: {
+      inProgress: "进行中",
+      inReview: "审查中",
+      done: "已完成",
+    },
     scopes: {
       all: { label: "全部", description: "工作区中的所有问题" },
       members: { label: "成员", description: "指派给团队成员的问题" },

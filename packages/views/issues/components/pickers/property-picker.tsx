@@ -1,16 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Check } from "lucide-react";
+import { Check, Search, X } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@multica/ui/components/ui/popover";
-
-// ---------------------------------------------------------------------------
-// PropertyPicker — generic Popover shell with optional search
-// ---------------------------------------------------------------------------
 
 type TranslateFn = (key: string, fallback: string) => string;
 
@@ -19,10 +15,10 @@ export function PropertyPicker({
   onOpenChange,
   trigger,
   triggerRender,
-  width = "w-48",
+  width = "w-52",
   align = "end",
   searchable = false,
-  searchPlaceholder = "Filter...",
+  searchPlaceholder = "Search...",
   onSearchChange,
   children,
   t,
@@ -57,36 +53,40 @@ export function PropertyPicker({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger
-        className={triggerRender ? undefined : "flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 hover:bg-accent/30 transition-colors overflow-hidden"}
-        render={triggerRender}
+        className={triggerRender ? undefined : "flex items-center gap-1.5 cursor-pointer rounded-lg px-2 py-1 -mx-2 hover:bg-muted/50 transition-all duration-200"}
+        {...(triggerRender ? { render: triggerRender } : {})}
       >
         {trigger}
       </PopoverTrigger>
-      <PopoverContent align={align} className={`${width} gap-0 p-0`}>
+      <PopoverContent align={align} className={`${width} gap-0 p-0 shadow-xl shadow-slate-200/30 dark:shadow-slate-950/50 rounded-xl border-border/60 overflow-hidden`}>
         {searchable && (
-          <div className="px-2 py-1.5 border-b">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                onSearchChange?.(e.target.value);
-              }}
-              placeholder={translate('issuesHeader.filter', searchPlaceholder)}
-              aria-label="Filter options"
-              className="w-full bg-transparent text-sm placeholder:text-muted-foreground outline-none"
-            />
+          <div className="px-3 py-2.5 border-b border-border/40 bg-muted/20">
+            <div className="flex items-center gap-2 px-2.5 h-9 rounded-lg bg-background border border-border/50 shadow-sm">
+              <Search className="size-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  onSearchChange?.(e.target.value);
+                }}
+                placeholder={translate('issuesHeader.filter', searchPlaceholder)}
+                aria-label="Search options"
+                className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground outline-none"
+              />
+              {query && (
+                <button onClick={() => setQuery("")} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         )}
-        <div className="p-1 max-h-60 overflow-y-auto">{children}</div>
+        <div className="p-1.5 max-h-64 overflow-y-auto">{children}</div>
       </PopoverContent>
     </Popover>
   );
 }
-
-// ---------------------------------------------------------------------------
-// PickerItem — single selectable row
-// ---------------------------------------------------------------------------
 
 export function PickerItem({
   selected,
@@ -106,17 +106,17 @@ export function PickerItem({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm ${disabled ? "opacity-50 cursor-not-allowed" : hoverClassName ?? "hover:bg-accent"} transition-colors`}
+      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-all duration-150 ${
+        disabled 
+          ? "opacity-50 cursor-not-allowed" 
+          : `cursor-pointer ${hoverClassName ?? "hover:bg-muted/60"}`
+      } ${selected ? "bg-primary/8 text-primary" : ""}`}
     >
-      <span className="flex flex-1 items-center gap-2">{children}</span>
-      {selected && <Check className="h-3.5 w-3.5 text-muted-foreground" />}
+      <span className="flex flex-1 items-center gap-2.5">{children}</span>
+      {selected && <Check className="h-4 w-4 text-primary" />}
     </button>
   );
 }
-
-// ---------------------------------------------------------------------------
-// PickerSection — group header
-// ---------------------------------------------------------------------------
 
 export function PickerSection({
   label,
@@ -127,7 +127,7 @@ export function PickerSection({
 }) {
   return (
     <div>
-      <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+      <div className="px-3 pt-2.5 pb-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
         {label}
       </div>
       {children}
@@ -135,14 +135,10 @@ export function PickerSection({
   );
 }
 
-// ---------------------------------------------------------------------------
-// PickerEmpty — no results state
-// ---------------------------------------------------------------------------
-
 export function PickerEmpty() {
   return (
-    <div className="px-2 py-3 text-center text-sm text-muted-foreground">
-      No results
+    <div className="px-3 py-6 text-center">
+      <div className="text-xs text-muted-foreground/50 font-medium">No results found</div>
     </div>
   );
 }

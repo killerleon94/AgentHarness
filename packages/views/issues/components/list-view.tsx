@@ -19,10 +19,8 @@ import { InfiniteScrollSentinel } from "./infinite-scroll-sentinel";
 
 const EMPTY_PROGRESS_MAP = new Map<string, ChildProgress>();
 
-// 定义翻译函数类型
 type TranslateFn = (key: string, fallback: string) => string;
 
-// 将 Config Key 映射到 Dictionary Key 的辅助函数
 const getStatusDictKey = (status: IssueStatus): string => {
   const map: Record<string, string> = {
     'backlog': 'backlog',
@@ -43,14 +41,12 @@ export function ListView({
   doneTotal: doneTotalOverride,
   myIssuesScope,
   myIssuesFilter,
-  t = (_, fallback) => fallback, // 默认 fallback
+  t = (_, fallback) => fallback,
 }: {
   issues: Issue[];
   visibleStatuses: IssueStatus[];
   childProgressMap?: Map<string, ChildProgress>;
-  /** Override the done-group count (e.g. with a server-filtered total). */
   doneTotal?: number;
-  /** When set, use the My Issues load-more hook instead of the workspace one. */
   myIssuesScope?: string;
   myIssuesFilter?: MyIssuesFilter;
   t?: TranslateFn;
@@ -89,10 +85,10 @@ export function ListView({
   );
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto p-2">
+    <div className="flex-1 min-h-0 overflow-y-auto">
       <Accordion.Root
         multiple
-        className="space-y-1"
+        className="divide-y divide-border/40"
         value={expandedStatuses}
         onValueChange={(value: string[]) => {
           for (const status of visibleStatuses) {
@@ -114,74 +110,76 @@ export function ListView({
 
           return (
             <Accordion.Item key={status} value={status}>
-              <Accordion.Header className="group/header flex h-10 items-center rounded-lg bg-muted/40 transition-colors hover:bg-accent/30">
-                <div className="pl-3 flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someSelected && !allSelected;
-                    }}
-                    onChange={() => {
-                      if (allSelected) {
-                        deselect(statusIssueIds);
-                      } else {
-                        select(statusIssueIds);
-                      }
-                    }}
-                    className="cursor-pointer accent-primary"
-                  />
-                </div>
-                <Accordion.Trigger className="group/trigger flex flex-1 items-center gap-2 px-2 h-full text-left outline-none">
-                  <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-aria-expanded/trigger:rotate-90" />
-                  <span className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold ${cfg.badgeBg} ${cfg.badgeText}`}>
-                    <StatusIcon status={status} className="h-3 w-3" inheritColor />
-                    {t(`board.statuses.${getStatusDictKey(status)}`, cfg.label)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {status === "done" ? displayDoneTotal : statusIssues.length}
-                  </span>
-                </Accordion.Trigger>
-                <div className="pr-2">
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="rounded-full text-muted-foreground opacity-0 group-hover/header:opacity-100 transition-opacity"
-                          onClick={() =>
-                            useModalStore
-                              .getState()
-                              .open("create-issue", { status })
-                          }
-                        >
-                          <Plus className="size-3.5" />
-                        </Button>
-                      }
-                    >
-                      {/* 使用 t 函数进行国际化 */}
-                      <TooltipContent>{t('board.addIssue', 'Add issue')}</TooltipContent>
-                    </TooltipTrigger>
-                  </Tooltip>
+              <Accordion.Header className="group/header">
+                <div className={`flex items-center h-12 px-4 gap-3 bg-muted/20 hover:bg-muted/30 transition-colors duration-200 ${someSelected ? 'bg-primary/5' : ''}`}>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someSelected && !allSelected;
+                      }}
+                      onChange={() => {
+                        if (allSelected) {
+                          deselect(statusIssueIds);
+                        } else {
+                          select(statusIssueIds);
+                        }
+                      }}
+                      className="cursor-pointer accent-primary size-4 rounded"
+                    />
+                  </div>
+                  <Accordion.Trigger className="group/trigger flex flex-1 items-center gap-3 h-full text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-lg">
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-aria-expanded/trigger:rotate-90" />
+                    <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 ${cfg.badgeBg} ${cfg.badgeText}`}>
+                      <StatusIcon status={status} className="h-4 w-4" inheritColor />
+                      <span className="text-sm font-bold">{t(`board.statuses.${getStatusDictKey(status)}`, cfg.label)}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-muted-foreground/60">
+                      {status === "done" ? displayDoneTotal : statusIssues.length}
+                    </span>
+                  </Accordion.Trigger>
+                  <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity">
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-all duration-200"
+                            onClick={() =>
+                              useModalStore
+                                .getState()
+                                .open("create-issue", { status })
+                            }
+                          >
+                            <Plus className="size-4" />
+                          </Button>
+                        }
+                      >
+                        <TooltipContent>{t('board.addIssue', 'Add issue')}</TooltipContent>
+                      </TooltipTrigger>
+                    </Tooltip>
+                  </div>
                 </div>
               </Accordion.Header>
-              <Accordion.Panel className="pt-1">
-                {statusIssues.length > 0 ? (
-                  <>
-                    {statusIssues.map((issue) => (
-                      <ListRow key={issue.id} issue={issue} childProgress={childProgressMap.get(issue.id)} />
-                    ))}
-                    {status === "done" && hasMore && (
-                      <InfiniteScrollSentinel onVisible={loadMore} loading={loadingMore} />
-                    )}
-                  </>
-                ) : (
-                  <p className="py-6 text-center text-xs text-muted-foreground">
-                    {/* 使用 t 函数进行国际化 */}
-                    {t('board.noIssues', 'No issues')}
-                  </p>
-                )}
+              <Accordion.Panel>
+                <div className="divide-y divide-border/30">
+                  {statusIssues.length > 0 ? (
+                    <>
+                      {statusIssues.map((issue) => (
+                        <ListRow key={issue.id} issue={issue} childProgress={childProgressMap.get(issue.id)} />
+                      ))}
+                      {status === "done" && hasMore && (
+                        <InfiniteScrollSentinel onVisible={loadMore} loading={loadingMore} />
+                      )}
+                    </>
+                  ) : (
+                    <div className="py-12 text-center">
+                      <div className="text-xs text-muted-foreground/40 font-medium">{t('board.noIssues', 'No issues')}</div>
+                    </div>
+                  )}
+                </div>
               </Accordion.Panel>
             </Accordion.Item>
           );

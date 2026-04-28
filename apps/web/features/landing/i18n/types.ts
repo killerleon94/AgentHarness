@@ -29,6 +29,10 @@ type CommonDict = {
   creator?: string;
   project?: string;
   searchPlaceholder?: string;
+  members?: string;
+  agents?: string;
+  noProject?: string;
+  removeFromProject?: string;
   actions?: CommonActionsDict;
 };
 
@@ -105,6 +109,12 @@ type IssuesHeaderDict = {
   noProject: string;
   issue: string; // 单数
   issues: string; // 复数
+  newIssue: string;
+  stats?: {
+    inProgress?: string;
+    inReview?: string;
+    done?: string;
+  };
   scopes: {
     all: { label: string; description: string };
     members: { label: string; description: string };
@@ -403,6 +413,7 @@ type IssueDetailDict = {
   placeholders: {
     title: string;
     description: string;
+    reply: string;
   };
 
   // 标签与标题

@@ -212,8 +212,8 @@ function PropRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-8 items-center gap-2 rounded-md px-2 -mx-2 hover:bg-accent/50 transition-colors">
-      <span className="w-16 shrink-0 text-xs text-muted-foreground">{label}</span>
+    <div className="flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 -mx-2.5 hover:bg-muted/40 transition-colors duration-200 cursor-pointer">
+      <span className="w-16 shrink-0 text-[11px] text-muted-foreground/60 font-medium">{label}</span>
       <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs truncate">
         {children}
       </div>
@@ -1208,7 +1208,7 @@ export function IssueDetail({
 
             {/* Bottom comment input — no avatar, full width */}
             <div className="mt-4">
-              <CommentInput issueId={id} onSubmit={submitComment} />
+              <CommentInput issueId={id} onSubmit={submitComment} placeholder={t('issueDetail.placeholders.reply', 'Leave a reply...')} />
             </div>
           </div>
         </div>
@@ -1246,6 +1246,7 @@ export function IssueDetail({
                   status={issue.status}
                   onUpdate={handleUpdateField}
                   align="start"
+                  t={t}
                 />
               </PropRow>
 
@@ -1373,7 +1374,7 @@ export function IssueDetail({
               {t('issueDetail.labels.agentFiles', 'Agent Files')}
             </div>
             <div className="pl-2">
-              <WorkdirFileBrowser workspaceId={issue.workspace_id} issueId={id} />
+              <WorkdirFileBrowser workspaceId={issue.workspace_id} issueId={id} t={t} />
             </div>
           </div>
 
