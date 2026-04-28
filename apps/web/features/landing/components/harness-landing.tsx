@@ -267,7 +267,7 @@ const content: Record<Locale, LandingContent> = {
       backToTop: "返回顶部",
     },
     hero: {
-      eyebrow: " 天驱智能调度中枢",
+      eyebrow: "天驭智能调度中枢",
       line1: "未来的团队协作里，",
       line2: "伙伴不止是人类。",
       description:

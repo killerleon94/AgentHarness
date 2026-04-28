@@ -150,6 +150,17 @@ type MyIssuesDict = {
 
 type InboxDict = {
   title: string;
+  unread: string;
+  filter: string;
+  filterAll: string;
+  filterUnread: string;
+  filterRead: string;
+  filterNoUnread: string;
+  filterNoRead: string;
+  sections: {
+    unread: string;
+    read: string;
+  };
   emptyState: {
     title: string;
     subtitle: string;

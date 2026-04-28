@@ -22,76 +22,101 @@ function timeAgo(dateStr: string, t?: TranslateFn): string {
 
 export { timeAgo };
 
+type ItemVariant = "unread" | "read";
+
 export function InboxListItem({
   item,
   isSelected,
   onClick,
   onArchive,
+  variant = "read",
   t,
 }: {
   item: InboxItem;
   isSelected: boolean;
   onClick: () => void;
   onArchive: () => void;
+  variant?: ItemVariant;
   t?: TranslateFn;
 }) {
+  const isUnread = variant === "unread";
+
   return (
     <button
       onClick={onClick}
-      className={`group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-        isSelected ? "bg-accent" : "hover:bg-accent/50"
-      }`}
+      className={`
+        group relative w-full text-left rounded-xl p-3 transition-all duration-200 cursor-pointer
+        ${isSelected 
+          ? isUnread 
+            ? "bg-destructive/5 border border-destructive/20 shadow-sm" 
+            : "bg-accent border border-accent/50 shadow-sm"
+          : isUnread 
+            ? "bg-card hover:bg-card/80 border border-transparent hover:border-border/50 shadow-[0_1px_2px_rgba(0,0,0,0.04)]" 
+            : "bg-transparent hover:bg-muted/30 border border-transparent"
+        }
+      `}
     >
-      <ActorAvatar
-        actorType={item.actor_type ?? item.recipient_type}
-        actorId={item.actor_id ?? item.recipient_id}
-        size={28}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-1.5">
-            {!item.read && (
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
-            )}
-            <span
-              className={`truncate text-sm ${!item.read ? "font-medium" : "text-muted-foreground"}`}
-            >
-              {item.title}
+      <div className="flex items-start gap-3">
+        <div className="relative shrink-0 pt-0.5">
+          <ActorAvatar
+            actorType={item.actor_type ?? item.recipient_type}
+            actorId={item.actor_id ?? item.recipient_id}
+            size={36}
+          />
+          {isUnread && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75 animate-ping" style={{ animationDuration: '2s' }} />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-destructive" />
             </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <span
-              role="button"
-              tabIndex={-1}
-              title="Archive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onArchive();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  onArchive();
-                }
-              }}
-              className="hidden rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground group-hover:inline-flex"
-            >
-              <Archive className="h-3.5 w-3.5" />
-            </span>
-            {item.issue_status && (
-              <StatusIcon status={item.issue_status} className="h-3.5 w-3.5 shrink-0" />
-            )}
-          </div>
+          )}
         </div>
-        <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs ${item.read ? "text-muted-foreground/60" : "text-muted-foreground"}`}>
+
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className={`truncate text-sm leading-tight ${isUnread ? "font-semibold text-foreground" : "text-foreground/80"}`}>
+              {item.title}
+            </p>
+            <span className={`shrink-0 text-[11px] ${isUnread ? "text-destructive/70" : "text-muted-foreground/60"}`}>
+              {timeAgo(item.created_at, t)}
+            </span>
+          </div>
+
+          <p className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs leading-snug ${isUnread ? "text-foreground/60" : "text-muted-foreground"}`}>
             {getInboxDetailLabel(item, t)}
           </p>
-          <span className={`shrink-0 text-xs ${item.read ? "text-muted-foreground/60" : "text-muted-foreground"}`}>
-            {timeAgo(item.created_at, t)}
+
+          {item.issue_status && (
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <StatusIcon status={item.issue_status} className="h-3 w-3" />
+            </div>
+          )}
+        </div>
+
+        <div className={`shrink-0 transition-opacity duration-150 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+          <span
+            role="button"
+            tabIndex={0}
+            title={t ? t('inbox.actions.archive', 'Archive') : 'Archive'}
+            onClick={(e) => {
+              e.stopPropagation();
+              onArchive();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+                onArchive();
+              }
+            }}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
+          >
+            <Archive className="h-3.5 w-3.5" />
           </span>
         </div>
       </div>
+
+      {isUnread && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-8 bg-gradient-to-b from-destructive via-destructive to-destructive/50 rounded-r" />
+      )}
     </button>
   );
 }
