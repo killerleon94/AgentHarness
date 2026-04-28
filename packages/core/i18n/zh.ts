@@ -376,6 +376,17 @@ export const zh = {
   },
   inbox: {
     title: "收件箱",
+    unread: "未读",
+    filter: "筛选",
+    filterAll: "全部",
+    filterUnread: "未读",
+    filterRead: "已读",
+    filterNoUnread: "没有未读通知",
+    filterNoRead: "没有已读通知",
+    sections: {
+      unread: "未读",
+      read: "已读",
+    },
     emptyState: {
       title: "暂无通知",
     },

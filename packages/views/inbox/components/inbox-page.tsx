@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
 import {
   inboxListOptions,
-  deduplicateInboxItems,
 } from "@multica/core/inbox/queries";
 import {
   useMarkInboxRead,
@@ -28,6 +27,9 @@ import {
   BookCheck,
   ListChecks,
   ArrowLeft,
+  Bell,
+  BellOff,
+  Filter,
 } from "lucide-react";
 import type { InboxItem } from "@multica/core/types";
 import { Button } from "@multica/ui/components/ui/button";
@@ -61,8 +63,8 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
   const urlIssue = searchParams.get("issue") ?? "";
 
   const [selectedKey, setSelectedKeyState] = useState(() => urlIssue);
+  const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
 
-  // Sync from URL when searchParams change (e.g. navigation)
   useEffect(() => {
     setSelectedKeyState(urlIssue);
   }, [urlIssue]);
@@ -75,14 +77,14 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
 
   const wsId = useWorkspaceId();
   const { data: rawItems = [], isLoading: loading } = useQuery(inboxListOptions(wsId));
-  const items = useMemo(() => deduplicateInboxItems(rawItems), [rawItems]);
+  const items = useMemo(() => rawItems.filter((i) => !i.archived), [rawItems]);
 
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "multica_inbox_layout",
   });
 
   const isMobile = useIsMobile();
-  const selected = items.find((i) => (i.issue_id ?? i.id) === selectedKey) ?? null;
+  const selected = items.find((i) => i.id === selectedKey) ?? null;
   const unreadCount = items.filter((i) => !i.read).length;
 
   const markReadMutation = useMarkInboxRead();
@@ -92,9 +94,8 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
   const archiveAllReadMutation = useArchiveAllReadInbox();
   const archiveCompletedMutation = useArchiveCompletedInbox();
 
-  // Click-to-read: select + auto-mark-read
   const handleSelect = (item: InboxItem) => {
-    setSelectedKey(item.issue_id ?? item.id);
+    setSelectedKey(item.id);
     if (!item.read) {
       markReadMutation.mutate(item.id, {
         onError: () => toast.error(t('inbox.errors.markReadFailed', 'Failed to mark as read')),
@@ -104,13 +105,12 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
 
   const handleArchive = (id: string) => {
     const archived = items.find((i) => i.id === id);
-    if (archived && (archived.issue_id ?? archived.id) === selectedKey) setSelectedKey("");
+    if (archived && archived.id === selectedKey) setSelectedKey("");
     archiveMutation.mutate(id, {
       onError: () => toast.error(t('inbox.errors.archiveFailed', 'Failed to archive')),
     });
   };
 
-  // Batch operations
   const handleMarkAllRead = () => {
     markAllReadMutation.mutate(undefined, {
       onError: () => toast.error(t('inbox.errors.markAllReadFailed', 'Failed to mark all as read')),
@@ -139,72 +139,170 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
     });
   };
 
-  // -- Shared sub-components --------------------------------------------------
+  const unreadItems = items.filter((i) => !i.read);
+  const readItems = items.filter((i) => i.read);
 
   const listHeader = (
-    <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-sm font-semibold">{t('inbox.title', 'Inbox')}</h1>
-        {unreadCount > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {unreadCount}
-          </span>
-        )}
+    <div className="flex h-14 shrink-0 items-center justify-between border-b border-border/50 bg-gradient-to-r from-background to-background/80 px-4 backdrop-blur-sm">
+      <div className="flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+          <Bell className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex flex-col">
+          <h1 className="text-sm font-semibold tracking-tight">{t('inbox.title', 'Inbox')}</h1>
+          {unreadCount > 0 && (
+            <span className="text-[10px] text-muted-foreground">
+              {unreadCount} {t('inbox.unread', 'unread')}
+            </span>
+          )}
+        </div>
       </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="text-muted-foreground"
-            />
-          }
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-auto">
-          <DropdownMenuItem onClick={handleMarkAllRead}>
-            <CheckCheck className="h-4 w-4" />
-            {t('inbox.actions.markAllRead', 'Mark all as read')}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleArchiveAll}>
-            <Archive className="h-4 w-4" />
-            {t('inbox.actions.archiveAll', 'Archive all')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleArchiveAllRead}>
-            <BookCheck className="h-4 w-4" />
-            {t('inbox.actions.archiveAllRead', 'Archive all read')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleArchiveCompleted}>
-            <ListChecks className="h-4 w-4" />
-            {t('inbox.actions.archiveCompleted', 'Archive completed')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center gap-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="text-muted-foreground hover:bg-accent/80"
+              />
+            }
+          >
+            <Filter className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-auto">
+            <DropdownMenuItem onClick={() => setFilter("all")} className="cursor-pointer gap-2">
+              <div className={`h-1.5 w-1.5 rounded-full ${filter === "all" ? "bg-destructive" : "bg-muted-foreground/30"}`} />
+              {t('inbox.filterAll', 'All')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilter("unread")} className="cursor-pointer gap-2">
+              <div className={`h-1.5 w-1.5 rounded-full ${filter === "unread" ? "bg-destructive" : "bg-muted-foreground/30"}`} />
+              {t('inbox.filterUnread', 'Unread')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilter("read")} className="cursor-pointer gap-2">
+              <div className={`h-1.5 w-1.5 rounded-full ${filter === "read" ? "bg-destructive" : "bg-muted-foreground/30"}`} />
+              {t('inbox.filterRead', 'Read')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="text-muted-foreground hover:bg-accent/80"
+              />
+            }
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-auto">
+            <DropdownMenuItem onClick={handleMarkAllRead} className="cursor-pointer">
+              <CheckCheck className="h-4 w-4" />
+              {t('inbox.actions.markAllRead', 'Mark all as read')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleArchiveAll} className="cursor-pointer">
+              <Archive className="h-4 w-4" />
+              {t('inbox.actions.archiveAll', 'Archive all')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleArchiveAllRead} className="cursor-pointer">
+              <BookCheck className="h-4 w-4" />
+              {t('inbox.actions.archiveAllRead', 'Archive all read')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleArchiveCompleted} className="cursor-pointer">
+              <ListChecks className="h-4 w-4" />
+              {t('inbox.actions.archiveCompleted', 'Archive completed')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 
-  const listBody = items.length === 0 ? (
-    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-      <Inbox className="mb-3 h-8 w-8 text-muted-foreground/50" />
-      <p className="text-sm">{t('inbox.emptyState.title', 'No notifications')}</p>
-    </div>
-  ) : (
-    <div>
-      {items.map((item) => (
-        <InboxListItem
-          key={item.id}
-          item={item}
-          isSelected={(item.issue_id ?? item.id) === selectedKey}
-          onClick={() => handleSelect(item)}
-          onArchive={() => handleArchive(item.id)}
-          t={t}
-        />
-      ))}
+  const SectionHeader = ({ title, count }: { title: string; count: number }) => (
+    <div className="flex items-center gap-2 px-4 py-2">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+        {title}
+      </span>
+      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[9px] font-medium text-muted-foreground">
+        {count}
+      </span>
     </div>
   );
+
+  const renderListContent = () => {
+    if (items.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10 shadow-sm">
+            <BellOff className="h-10 w-10 text-primary/40" />
+          </div>
+          <h3 className="mb-1 text-base font-medium">{t('inbox.emptyState.title', 'No notifications')}</h3>
+          <p className="text-sm text-muted-foreground">{t('inbox.detail.empty', 'Your inbox is empty')}</p>
+        </div>
+      );
+    }
+
+    const filteredUnread = filter === "all" || filter === "unread" ? unreadItems : [];
+    const filteredRead = filter === "all" || filter === "read" ? readItems : [];
+
+    if (filter !== "all" && filteredUnread.length === 0 && filteredRead.length === 0) {
+      const emptyMessage = filter === "unread" 
+        ? t('inbox.filterNoUnread', 'No unread notifications')
+        : t('inbox.filterNoRead', 'No read notifications');
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10 shadow-sm">
+            <BellOff className="h-10 w-10 text-primary/40" />
+          </div>
+          <h3 className="mb-1 text-base font-medium">{emptyMessage}</h3>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1">
+        {filteredUnread.length > 0 && (
+          <>
+            <SectionHeader title={t('inbox.sections.unread', 'Unread')} count={filteredUnread.length} />
+            <div className="space-y-0.5 px-2">
+              {filteredUnread.map((item) => (
+                <InboxListItem
+                  key={item.id}
+                  item={item}
+                  isSelected={item.id === selectedKey}
+                  onClick={() => handleSelect(item)}
+                  onArchive={() => handleArchive(item.id)}
+                  variant="unread"
+                  t={t}
+                />
+              ))}
+            </div>
+          </>
+        )}
+        {filteredRead.length > 0 && (
+          <>
+            <SectionHeader title={t('inbox.sections.read', 'Read')} count={filteredRead.length} />
+            <div className="space-y-0.5 px-2">
+              {filteredRead.map((item) => (
+                <InboxListItem
+                  key={item.id}
+                  item={item}
+                  isSelected={item.id === selectedKey}
+                  onClick={() => handleSelect(item)}
+                  onArchive={() => handleArchive(item.id)}
+                  variant="read"
+                  t={t}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   const detailContent = selected?.issue_id ? (
     <IssueDetail
@@ -219,42 +317,43 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
       t={t}
     />
   ) : selected ? (
-    <div className="p-6">
-      <h2 className="text-lg font-semibold">{selected.title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {t(`inbox.types.${selected.type}`, "Assigned")} · {timeAgo(selected.created_at, t)}
-      </p>
-      {selected.body && (
-        <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
-          {selected.body}
+    <div className="p-6 space-y-4">
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold leading-tight">{selected.title}</h2>
+          <p className="text-xs text-muted-foreground">
+            {t(`inbox.types.${selected.type}`, "Assigned")} · {timeAgo(selected.created_at, t)}
+          </p>
         </div>
-      )}
-      <div className="mt-4">
         <Button
           variant="outline"
           size="sm"
           onClick={() => handleArchive(selected.id)}
+          className="gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
         >
-          <Archive className="mr-1.5 h-3.5 w-3.5" />
+          <Archive className="h-3.5 w-3.5" />
           {t('inbox.actions.archive', 'Archive')}
         </Button>
       </div>
+      {selected.body && (
+        <div className="rounded-lg bg-muted/30 p-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
+          {selected.body}
+        </div>
+      )}
     </div>
   ) : null;
-
-  // -- Mobile layout: list / detail toggle -----------------------------------
 
   if (isMobile) {
     if (loading) {
       return (
-        <div className="flex flex-1 flex-col min-h-0">
-          <div className="flex h-12 shrink-0 items-center border-b px-4">
+        <div className="flex flex-col min-h-0 bg-background">
+          <div className="flex h-14 shrink-0 items-center border-b border-border/50 bg-gradient-to-r from-background to-background/80 px-4 backdrop-blur-sm">
             <Skeleton className="h-5 w-16" />
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-1 p-2">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-2.5">
-                <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+              <div key={i} className="flex items-center gap-3 p-4 rounded-xl bg-card">
+                <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-3 w-1/2" />
@@ -266,16 +365,15 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
       );
     }
 
-    // Mobile: show detail full-screen when an item is selected
     if (selected) {
       return (
-        <div className="flex flex-1 flex-col min-h-0">
-          <div className="flex h-12 shrink-0 items-center border-b px-2">
+        <div className="flex flex-col min-h-0 bg-background">
+          <div className="flex h-14 shrink-0 items-center border-b border-border/50 bg-gradient-to-r from-background to-background/80 px-4 backdrop-blur-sm">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSelectedKey("")}
-              className="gap-1.5 text-muted-foreground"
+              className="gap-1.5 text-muted-foreground hover:bg-accent/80"
             >
               <ArrowLeft className="h-4 w-4" />
               {t('inbox.title', 'Inbox')}
@@ -288,31 +386,28 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
       );
     }
 
-    // Mobile: full-screen list
     return (
-      <div className="flex flex-1 flex-col min-h-0">
+      <div className="flex flex-col min-h-0 bg-background">
         {listHeader}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {listBody}
+          {renderListContent()}
         </div>
       </div>
     );
   }
 
-  // -- Desktop layout: resizable two-panel -----------------------------------
-
   if (loading) {
     return (
-      <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0" defaultLayout={defaultLayout} onLayoutChanged={onLayoutChanged}>
-        <ResizablePanel id="list" defaultSize={320} minSize={240} maxSize={480} groupResizeBehavior="preserve-pixel-size">
-          <div className="flex flex-col border-r h-full">
-            <div className="flex h-12 shrink-0 items-center border-b px-4">
+      <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0 bg-background" defaultLayout={defaultLayout} onLayoutChanged={onLayoutChanged}>
+        <ResizablePanel id="list" defaultSize={380} minSize={280} maxSize={520} groupResizeBehavior="preserve-pixel-size">
+          <div className="flex flex-col border-r border-border/50 h-full">
+            <div className="flex h-14 shrink-0 items-center border-b border-border/50 bg-gradient-to-r from-background to-background/80 px-4 backdrop-blur-sm">
               <Skeleton className="h-5 w-16" />
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-1 p-2">
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-2.5">
-                  <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+                <div key={i} className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border/30">
+                  <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-3 w-1/2" />
@@ -324,9 +419,13 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel id="detail" minSize="40%">
-          <div className="p-6">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="mt-4 h-4 w-32" />
+          <div className="p-8 flex items-center justify-center h-full">
+            <div className="text-center space-y-3">
+              <div className="mx-auto h-12 w-12 rounded-xl bg-muted/30 flex items-center justify-center">
+                <Inbox className="h-6 w-6 text-muted-foreground/30" />
+              </div>
+              <Skeleton className="h-5 w-32 mx-auto" />
+            </div>
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
@@ -334,29 +433,36 @@ export function InboxPage({ t: tProp }: InboxPageProps) {
   }
 
   return (
-    <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0" defaultLayout={defaultLayout} onLayoutChanged={onLayoutChanged}>
-      <ResizablePanel id="list" defaultSize={320} minSize={240} maxSize={480} groupResizeBehavior="preserve-pixel-size">
-      <div className="flex flex-col border-r h-full">
-        {listHeader}
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          {listBody}
+    <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0 bg-background" defaultLayout={defaultLayout} onLayoutChanged={onLayoutChanged}>
+      <ResizablePanel id="list" defaultSize={380} minSize={280} maxSize={520} groupResizeBehavior="preserve-pixel-size">
+        <div className="flex flex-col border-r border-border/50 h-full bg-gradient-to-b from-background to-muted/5">
+          {listHeader}
+          <div className="flex-1 min-h-0 overflow-y-auto py-2">
+            {renderListContent()}
+          </div>
         </div>
-      </div>
       </ResizablePanel>
       <ResizableHandle />
       <ResizablePanel id="detail" minSize="40%">
-      <div className="flex flex-col min-h-0 h-full">
-        {detailContent ?? (
-          <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-            <Inbox className="mb-3 h-10 w-10 text-muted-foreground/30" />
-            <p className="text-sm">
-              {items.length === 0
-                ? t('inbox.detail.empty', 'Your inbox is empty')
-                : t('inbox.detail.selectNotification', 'Select a notification to view details')}
-            </p>
-          </div>
-        )}
-      </div>
+        <div className="flex flex-col min-h-0 h-full bg-gradient-to-b from-background to-muted/5">
+          {detailContent ?? (
+            <div className="flex h-full flex-col items-center justify-center text-center p-8">
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/5 to-primary/15 shadow-sm">
+                <Bell className="h-10 w-10 text-primary/50" />
+              </div>
+              <h3 className="mb-2 text-lg font-medium">
+                {items.length === 0
+                  ? t('inbox.detail.empty', 'Your inbox is empty')
+                  : t('inbox.detail.selectNotification', 'Select a notification')}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-[260px]">
+                {items.length === 0
+                  ? t('inbox.emptyState.title', 'No notifications')
+                  : t('inbox.detail.selectNotification', 'Select a notification to view details')}
+              </p>
+            </div>
+          )}
+        </div>
       </ResizablePanel>
     </ResizablePanelGroup>
   );

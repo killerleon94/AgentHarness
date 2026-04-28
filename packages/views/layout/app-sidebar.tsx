@@ -115,6 +115,9 @@ function GridNavItem({
   isActive?: boolean;
   onClick?: () => void;
 }) {
+  const hasUnread = typeof badge === "number" && badge > 0;
+  const unreadCount = typeof badge === "number" ? badge : 0;
+
   return (
     <Tooltip>
       <TooltipTrigger>
@@ -129,7 +132,7 @@ function GridNavItem({
             }
           }}
           className={cn(
-            "flex flex-col items-center justify-start gap-2 py-3 px-2 rounded-xl w-full",
+            "relative flex flex-col items-center justify-start gap-2 py-3 px-2 rounded-xl w-full",
             "transition-all duration-200 cursor-pointer",
             "hover:bg-sidebar-accent",
             isActive
@@ -138,11 +141,18 @@ function GridNavItem({
           )}
         >
           {badge === true && (
-            <span className="absolute right-0 top-0 size-2 rounded-full bg-destructive animate-pulse" />
+            <span className="absolute right-2 top-2 size-2 rounded-full bg-gradient-to-r from-rose-500 to-red-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />
           )}
-          {typeof badge === "number" && badge > 0 && (
-            <span className="absolute -top-1 -right-1 flex size-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-              {badge > 99 ? "99+" : badge}
+          {hasUnread && (
+            <span className="absolute right-1 top-1 flex items-center justify-center">
+              <span className={cn(
+                "relative inline-flex items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-red-600 shadow-[0_2px_8px_rgba(244,63,94,0.5),inset_0_1px_0_rgba(255,255,255,0.2)]",
+                unreadCount > 99 ? "h-5 min-w-[2.25rem] px-1.5" : "h-5 w-5"
+              )}>
+                <span className="text-[9px] font-semibold leading-none text-white drop-shadow-sm">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              </span>
             </span>
           )}
           <Icon

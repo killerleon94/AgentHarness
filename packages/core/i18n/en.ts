@@ -376,6 +376,17 @@ export const en = {
   },
   inbox: {
     title: "Inbox",
+    unread: "unread",
+    filter: "Filter",
+    filterAll: "All",
+    filterUnread: "Unread",
+    filterRead: "Read",
+    filterNoUnread: "No unread notifications",
+    filterNoRead: "No read notifications",
+    sections: {
+      unread: "Unread",
+      read: "Read",
+    },
     emptyState: {
       title: "No notifications",
     },
