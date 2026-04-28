@@ -565,6 +565,7 @@ export const zh: LandingDict = {
     createWorkspace: "创建工作区",
     logout: "退出登录",
     unpin: "取消置顶",
+    aiPowered: "AI驱动",
   },
   // 新增以下两个字段以匹配类型定义
   common: {

@@ -557,6 +557,7 @@ export const en: LandingDict = {
     createWorkspace: "Create workspace",
     logout: "Log out",
     unpin: "Unpin",
+    aiPowered: "AI-powered",
   },
   common: {
     workspace: "Workspace",

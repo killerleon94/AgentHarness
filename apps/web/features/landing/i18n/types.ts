@@ -50,6 +50,7 @@ type SidebarDict = {
   createWorkspace: string;
   logout: string;
   unpin: string;
+  aiPowered: string;
 };
 
 // 新增：仪表盘 Issues 页面字段类型
