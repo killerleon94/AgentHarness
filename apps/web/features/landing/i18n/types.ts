@@ -209,6 +209,22 @@ type ProjectsDict = {
     subtitle: string;
     action: string;
   };
+  stats: {
+    total: string;
+    inProgress: string;
+    completed: string;
+    projects: string;
+  };
+  view: {
+    grid: string;
+    list: string;
+  };
+  sort: string;
+  sortOptions: {
+    newest: string;
+    progress: string;
+    name: string;
+  };
   columns: {
     name: string;
     priority: string;

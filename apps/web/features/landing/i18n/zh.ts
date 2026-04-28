@@ -884,6 +884,22 @@ export const zh: LandingDict = {
       subtitle: "创建一个项目来管理你的问题",
       action: "创建第一个项目",
     },
+    stats: {
+      total: "{count} 个项目",
+      inProgress: "进行中",
+      completed: "已完成",
+      projects: "个项目",
+    },
+    view: {
+      grid: "网格视图",
+      list: "列表视图",
+    },
+    sort: "排序",
+    sortOptions: {
+      newest: "最新",
+      progress: "进度",
+      name: "名称",
+    },
     columns: {
       name: "名称",
       priority: "优先级",

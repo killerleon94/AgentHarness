@@ -333,7 +333,6 @@ export function AppSidebar({
                 <span className="font-semibold text-[13px] text-sidebar-foreground truncate max-w-[100px]">
                   {workspace?.name ?? t("common.workspace", "Harness")}
                 </span>
-                <span className="text-[10px] text-sidebar-foreground/40 truncate">AI-powered</span>
               </div>
               <ChevronRight className="size-3 text-sidebar-foreground/30 shrink-0" />
             </DropdownMenuTrigger>

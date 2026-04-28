@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Plus, FolderKanban, ChevronRight, Maximize2, Minimize2, X as XIcon, UserMinus } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Plus, FolderKanban, ChevronRight, Maximize2, Minimize2, X as XIcon, UserMinus, LayoutGrid, List, ArrowUpDown, CalendarDays, TrendingUp, CheckCircle2, Clock, Pause, XCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { projectListOptions } from "@multica/core/projects/queries";
 import { useCreateProject } from "@multica/core/projects/mutations";
@@ -42,6 +42,8 @@ import { useTranslation } from "@multica/core";
 
 type TranslateFn = (key: string, fallback: string) => string;
 
+type ViewMode = "grid" | "list";
+
 function getStatusDictKey(status: ProjectStatus): string {
   const map: Record<string, string> = {
     'planned': 'planned',
@@ -59,9 +61,117 @@ function getPriorityDictKey(priority: ProjectPriority): string {
     'high': 'high',
     'medium': 'medium',
     'low': 'low',
-    'none': 'none',
+    'none': 'noPriority',
   };
   return map[priority] || priority;
+}
+
+const StatusIcon = ({ status, className }: { status: ProjectStatus; className?: string }) => {
+  const icons: Record<ProjectStatus, React.ReactNode> = {
+    planned: <Clock className={cn("size-3.5", className)} />,
+    in_progress: <TrendingUp className={cn("size-3.5", className)} />,
+    paused: <Pause className={cn("size-3.5", className)} />,
+    completed: <CheckCircle2 className={cn("size-3.5", className)} />,
+    cancelled: <XCircle className={cn("size-3.5", className)} />,
+  };
+  return icons[status] || null;
+};
+
+function ProjectCard({ project, t }: { project: Project; t?: TranslateFn }) {
+  const defaultT = (_key: string, fallback: string) => fallback;
+  const translate = t || defaultT;
+  
+  const formatRelativeDate = (date: string): string => {
+    const diff = Date.now() - new Date(date).getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days < 1) return translate('projects.relativeTime.today', 'Today');
+    if (days === 1) return translate('projects.relativeTime.daysAgo', '1d ago').replace('{days}', '1');
+    if (days < 30) return translate('projects.relativeTime.daysAgo', '{days}d ago').replace('{days}', String(days));
+    const months = Math.floor(days / 30);
+    return translate('projects.relativeTime.monthsAgo', '{months}mo ago').replace('{months}', String(months));
+  };
+  
+  const statusCfg = PROJECT_STATUS_CONFIG[project.status];
+  const priorityCfg = PROJECT_PRIORITY_CONFIG[project.priority];
+  const progress = project.issue_count > 0 ? Math.round((project.done_count / project.issue_count) * 100) : 0;
+
+  return (
+    <AppLink
+      href={`/projects/${project.id}`}
+      className="group/card relative flex flex-col p-5 rounded-2xl border border-border/60 bg-card hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 cursor-pointer overflow-hidden"
+    >
+      {/* Background gradient accent */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300" />
+      
+      {/* Content */}
+      <div className="relative flex items-start gap-4">
+        {/* Icon */}
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 group-hover/card:border-primary/30 group-hover/card:bg-primary/15 transition-all duration-300">
+          {project.icon ? (
+            <span className="text-xl">{project.icon}</span>
+          ) : (
+            <FolderKanban className="size-6 text-primary/60" />
+          )}
+        </div>
+        
+        {/* Title and meta */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-base truncate group-hover/card:text-primary transition-colors duration-200">{project.title}</h3>
+          <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <CalendarDays className="size-3" />
+              {formatRelativeDate(project.created_at)}
+            </span>
+            {project.lead_type && project.lead_id && (
+              <ActorAvatar actorType={project.lead_type} actorId={project.lead_id} size={16} className="ring-1 ring-background" />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="relative flex items-center gap-4 mt-4 pt-4 border-t border-border/40">
+        {/* Priority */}
+        <div className="flex items-center gap-1.5">
+          <PriorityIcon priority={project.priority} />
+          <span className={cn("text-xs font-medium", priorityCfg.color)}>
+            {translate(`projects.priorities.${getPriorityDictKey(project.priority)}`, priorityCfg.label)}
+          </span>
+        </div>
+
+        {/* Status */}
+        <div className={cn(
+          "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+          statusCfg.badgeBg, statusCfg.badgeText
+        )}>
+          <StatusIcon status={project.status} className="size-3" />
+          {translate(`projects.statuses.${getStatusDictKey(project.status)}`, statusCfg.label)}
+        </div>
+
+        {/* Progress */}
+        {project.issue_count > 0 && (
+          <div className="ml-auto flex items-center gap-2">
+            <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div 
+                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground tabular-nums font-medium">
+              {project.done_count}/{project.issue_count}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Lead avatar (bottom right) */}
+      {project.lead_type && project.lead_id && (
+        <div className="absolute bottom-4 right-4 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300">
+          <ActorAvatar actorType={project.lead_type} actorId={project.lead_id} size={24} className="ring-2 ring-background" />
+        </div>
+      )}
+    </AppLink>
+  );
 }
 
 function ProjectRow({ project, t }: { project: Project; t?: TranslateFn }) {
@@ -80,63 +190,73 @@ function ProjectRow({ project, t }: { project: Project; t?: TranslateFn }) {
   
   const statusCfg = PROJECT_STATUS_CONFIG[project.status];
   const priorityCfg = PROJECT_PRIORITY_CONFIG[project.priority];
+  
   return (
     <AppLink
       href={`/projects/${project.id}`}
-      className="group/row flex h-11 items-center gap-2 px-5 text-sm transition-colors hover:bg-accent/40"
+      className="group/row flex items-center gap-4 px-5 py-4 border-b border-border/30 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent transition-all duration-200 cursor-pointer"
     >
       {/* Icon + Name */}
-      <span className="shrink-0 w-[24px] text-center text-base">{project.icon || "📁"}</span>
-      <span className="min-w-0 flex-1 truncate font-medium">{project.title}</span>
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 group-hover/row:border-primary/30 group-hover/row:bg-primary/10 transition-all duration-200">
+          {project.icon ? (
+            <span className="text-base">{project.icon}</span>
+          ) : (
+            <FolderKanban className="size-5 text-primary/60" />
+          )}
+        </div>
+        <span className="font-medium truncate group-hover/row:text-primary transition-colors duration-200">{project.title}</span>
+      </div>
 
       {/* Priority */}
-      <span className="flex w-24 items-center justify-center gap-1 shrink-0">
+      <div className="flex items-center gap-1.5 w-28 shrink-0">
         <PriorityIcon priority={project.priority} />
-        <span className={cn("text-xs", priorityCfg.color)}>
+        <span className={cn("text-xs font-medium", priorityCfg.color)}>
           {translate(`projects.priorities.${getPriorityDictKey(project.priority)}`, priorityCfg.label)}
         </span>
-      </span>
+      </div>
 
       {/* Status */}
-      <span className={cn(
-        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium shrink-0 w-28 justify-center",
-        statusCfg.badgeBg, statusCfg.badgeText,
+      <div className={cn(
+        "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium w-32 shrink-0",
+        statusCfg.badgeBg, statusCfg.badgeText
       )}>
+        <StatusIcon status={project.status} />
         {translate(`projects.statuses.${getStatusDictKey(project.status)}`, statusCfg.label)}
-      </span>
+      </div>
 
       {/* Progress */}
-      <span className="flex w-24 items-center justify-center gap-1.5 shrink-0">
+      <div className="flex items-center gap-2 w-32 shrink-0">
         {project.issue_count > 0 ? (
           <>
-            <span className="relative h-1.5 w-12 rounded-full bg-muted overflow-hidden">
-              <span
-                className="absolute inset-y-0 left-0 rounded-full bg-emerald-500 transition-all"
+            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div 
+                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
                 style={{ width: `${Math.round((project.done_count / project.issue_count) * 100)}%` }}
               />
-            </span>
-            <span className="text-xs text-muted-foreground tabular-nums">
+            </div>
+            <span className="text-xs text-muted-foreground tabular-nums font-medium w-12 text-right">
               {project.done_count}/{project.issue_count}
             </span>
           </>
         ) : (
           <span className="text-xs text-muted-foreground">--</span>
         )}
-      </span>
+      </div>
 
       {/* Lead */}
-      <span className="flex w-10 items-center justify-center shrink-0">
+      <div className="w-10 shrink-0 flex items-center justify-center">
         {project.lead_type && project.lead_id ? (
-          <ActorAvatar actorType={project.lead_type} actorId={project.lead_id} size={22} />
+          <ActorAvatar actorType={project.lead_type} actorId={project.lead_id} size={24} className="group-hover/row:ring-2 group-hover/row:ring-primary/20 transition-all duration-200" />
         ) : (
-          <span className="h-[22px] w-[22px] rounded-full border border-dashed border-muted-foreground/30" />
+          <div className="size-6 rounded-full border border-dashed border-muted-foreground/20" />
         )}
-      </span>
+      </div>
 
       {/* Created */}
-      <span className="w-20 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
-        {formatRelativeDate(project.created_at)}
-      </span>
+      <div className="w-24 shrink-0 text-right">
+        <span className="text-xs text-muted-foreground tabular-nums">{formatRelativeDate(project.created_at)}</span>
+      </div>
     </AppLink>
   );
 }
@@ -466,57 +586,236 @@ export function ProjectsPage({ t: tProp }: { t?: TranslateFn }) {
   const wsId = useWorkspaceId();
   const { data: projects = [], isLoading } = useQuery(projectListOptions(wsId));
   const [createOpen, setCreateOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [sortBy, setSortBy] = useState<"newest" | "progress" | "name">("newest");
+
+  const sortedProjects = useMemo(() => {
+    const sorted = [...projects];
+    switch (sortBy) {
+      case "name":
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case "progress":
+        sorted.sort((a, b) => {
+          const aProgress = a.issue_count > 0 ? a.done_count / a.issue_count : 0;
+          const bProgress = b.issue_count > 0 ? b.done_count / b.issue_count : 0;
+          return bProgress - aProgress;
+        });
+        break;
+      case "newest":
+      default:
+        sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+    }
+    return sorted;
+  }, [projects, sortBy]);
+
+  const stats = {
+    total: sortedProjects.length,
+    inProgress: sortedProjects.filter(p => p.status === 'in_progress').length,
+    completed: sortedProjects.filter(p => p.status === 'completed').length,
+    totalIssues: sortedProjects.reduce((acc, p) => acc + p.issue_count, 0),
+    totalDone: sortedProjects.reduce((acc, p) => acc + p.done_count, 0),
+  };
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header bar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b px-5">
-        <div className="flex items-center gap-2">
-          <FolderKanban className="h-4 w-4 text-muted-foreground" />
-          <h1 className="text-sm font-medium">{t('projects.title', 'Projects')}</h1>
-          {!isLoading && projects.length > 0 && (
-            <span className="text-xs text-muted-foreground tabular-nums">{projects.length}</span>
-          )}
+    <div className="flex h-full flex-col bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Header bar - modern design */}
+      <div className="shrink-0 border-b border-border/60 bg-card/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Left: Title + Stats */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20">
+                <FolderKanban className="size-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold">{t('projects.title', 'Projects')}</h1>
+                <p className="text-xs text-muted-foreground">
+                  {stats.total} {t('projects.stats.projects', 'projects')}
+                </p>
+              </div>
+            </div>
+            
+            {/* Stats pills */}
+            {!isLoading && projects.length > 0 && (
+              <div className="hidden md:flex items-center gap-2 ml-4 pl-4 border-l border-border/40">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                  <TrendingUp className="size-3.5 text-blue-500" />
+                  <span className="text-xs font-medium text-blue-600 dark:text-blue-400">{stats.inProgress}</span>
+                  <span className="text-xs text-blue-500/70">{t('projects.stats.inProgress', 'In Progress')}</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  <CheckCircle2 className="size-3.5 text-emerald-500" />
+                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{stats.completed}</span>
+                  <span className="text-xs text-emerald-500/70">{t('projects.stats.completed', 'Completed')}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-3">
+            {/* View toggle */}
+            <div className="flex items-center gap-0.5 p-1 rounded-xl bg-muted/40 border border-border/40">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={() => setViewMode("grid")}
+                      className={cn(
+                        "p-1.5 rounded-lg transition-all duration-200 cursor-pointer",
+                        viewMode === "grid"
+                          ? "bg-background shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      )}
+                    >
+                      <LayoutGrid className="size-4" />
+                    </button>
+                  }
+                />
+                <TooltipContent side="bottom">{t('projects.view.grid', 'Grid view')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={() => setViewMode("list")}
+                      className={cn(
+                        "p-1.5 rounded-lg transition-all duration-200 cursor-pointer",
+                        viewMode === "list"
+                          ? "bg-background shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      )}
+                    >
+                      <List className="size-4" />
+                    </button>
+                  }
+                />
+                <TooltipContent side="bottom">{t('projects.view.list', 'List view')}</TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* Sort dropdown */}
+            <DropdownMenu>
+              <Tooltip>
+                <DropdownMenuTrigger
+                  render={
+                    <TooltipTrigger
+                      render={
+                        <Button variant="outline" size="sm" className="h-8 gap-2 text-xs font-medium">
+                          <ArrowUpDown className="size-3.5" />
+                          <span className="hidden sm:inline">{t('projects.sort', 'Sort')}</span>
+                        </Button>
+                      }
+                    />
+                  }
+                />
+                <TooltipContent side="bottom">{t('projects.sort', 'Sort')}</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setSortBy("newest")} className={cn("cursor-pointer text-xs", sortBy === "newest" && "bg-accent")}>
+                  <CalendarDays className="size-3.5 mr-2" />
+                  {t('projects.sortOptions.newest', 'Newest')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortBy("progress")} className={cn("cursor-pointer text-xs", sortBy === "progress" && "bg-accent")}>
+                  <TrendingUp className="size-3.5 mr-2" />
+                  {t('projects.sortOptions.progress', 'Progress')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortBy("name")} className={cn("cursor-pointer text-xs", sortBy === "name" && "bg-accent")}>
+                  <span className="mr-2">🔤</span>
+                  {t('projects.sortOptions.name', 'Name')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Create button */}
+            <Button 
+              size="sm" 
+              className="h-8 bg-gradient-to-r from-primary to-primary/90 hover:opacity-90 shadow-sm font-medium cursor-pointer"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="size-4 mr-1.5" />
+              {t('projects.createProject', 'New project')}
+            </Button>
+          </div>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1" />
-          {t('projects.createProject', 'New project')}
-        </Button>
       </div>
 
-      {/* Table */}
+      {/* Content area */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="p-5 space-y-1">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-11 w-full" />
-            ))}
+          <div className="p-6">
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-48 rounded-2xl" >
+                    <Skeleton className="h-full w-full rounded-2xl" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                ))}
+              </div>
+            )}
           </div>
         ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
-            <FolderKanban className="h-10 w-10 mb-3 opacity-30" />
-            <p className="text-sm">{t('projects.emptyState.title', 'No projects yet')}</p>
-            <Button size="sm" variant="outline" className="mt-3" onClick={() => setCreateOpen(true)}>
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center py-24 px-4">
+            <div className="relative mb-6">
+              <div className="flex size-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                <FolderKanban className="size-10 text-primary/60" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 size-8 items-center justify-center rounded-full bg-primary/10 border border-primary/20 flex">
+                <Plus className="size-4 text-primary" />
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">{t('projects.emptyState.title', 'No projects yet')}</h3>
+            <p className="text-sm text-muted-foreground text-center max-w-xs mb-6">
+              {t('projects.emptyState.subtitle', 'Create your first project to get started organizing your work.')}
+            </p>
+            <Button 
+              className="bg-gradient-to-r from-primary to-primary/90 hover:opacity-90 shadow-sm cursor-pointer"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="size-4 mr-2" />
               {t('projects.emptyState.action', 'Create your first project')}
             </Button>
           </div>
         ) : (
           <>
-            {/* Column headers */}
-            <div className="sticky top-0 z-[1] flex h-8 items-center gap-2 border-b bg-muted/30 px-5 text-xs font-medium text-muted-foreground">
-              {/* Icon spacer + Name */}
-              <span className="shrink-0 w-[24px]" />
-              <span className="min-w-0 flex-1">{t('projects.columns.name', 'Name')}</span>
-              <span className="w-24 text-center shrink-0">{t('projects.columns.priority', 'Priority')}</span>
-              <span className="w-28 text-center shrink-0">{t('projects.columns.status', 'Status')}</span>
-              <span className="w-24 text-center shrink-0">{t('projects.columns.progress', 'Progress')}</span>
-              <span className="w-10 text-center shrink-0">{t('projects.columns.lead', 'Lead')}</span>
-              <span className="w-20 text-right shrink-0">{t('projects.columns.created', 'Created')}</span>
-            </div>
-            {/* Rows */}
-            {projects.map((project) => (
-              <ProjectRow key={project.id} project={project} t={t} />
-            ))}
+            {viewMode === "grid" ? (
+              /* Grid view */
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {sortedProjects.map((project) => (
+                    <ProjectCard key={project.id} project={project} t={t} />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* List view */
+              <div className="px-6 py-4">
+                {/* Column headers */}
+                <div className="flex items-center gap-4 px-4 py-3 rounded-xl bg-muted/30 border border-border/40 mb-4 text-xs font-medium text-muted-foreground">
+                  <div className="flex-1">{t('projects.columns.name', 'Name')}</div>
+                  <div className="w-28">{t('projects.columns.priority', 'Priority')}</div>
+                  <div className="w-32">{t('projects.columns.status', 'Status')}</div>
+                  <div className="w-32">{t('projects.columns.progress', 'Progress')}</div>
+                  <div className="w-10">{t('projects.columns.lead', 'Lead')}</div>
+                  <div className="w-24 text-right">{t('projects.columns.created', 'Created')}</div>
+                </div>
+                {/* Rows */}
+                <div className="rounded-2xl border border-border/40 bg-card overflow-hidden">
+                  {sortedProjects.map((project) => (
+                    <ProjectRow key={project.id} project={project} t={t} />
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

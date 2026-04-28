@@ -83,7 +83,7 @@ function getPriorityDictKey(priority: ProjectPriority): string {
     'high': 'high',
     'medium': 'medium',
     'low': 'low',
-    'none': 'none',
+    'none': 'noPriority',
   };
   return map[priority] || priority;
 }

@@ -880,6 +880,22 @@ export const en: LandingDict = {
       subtitle: "Create a project to organize your issues",
       action: "Create your first project",
     },
+    stats: {
+      total: "{count} projects",
+      inProgress: "In Progress",
+      completed: "Completed",
+      projects: "projects",
+    },
+    view: {
+      grid: "Grid view",
+      list: "List view",
+    },
+    sort: "Sort",
+    sortOptions: {
+      newest: "Newest",
+      progress: "Progress",
+      name: "Name",
+    },
     columns: {
       name: "Name",
       priority: "Priority",
