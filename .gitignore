@@ -28,3 +28,7 @@ graphify*
 .venv/
 
 server/bin/
+# Claw Code local artifacts
+.claw/settings.local.json
+.claw/sessions/
+.clawhip/

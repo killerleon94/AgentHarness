@@ -95,15 +95,14 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 		b.WriteString("- If the task requires code changes, use `multica repo checkout <url>` to get the code first\n")
 		b.WriteString("- Keep responses concise and direct\n\n")
 	} else if ctx.TriggerCommentID != "" {
-		// Comment-triggered: focus on reading and replying
-		b.WriteString("**This task was triggered by a comment.** Your primary job is to respond.\n\n")
-		fmt.Fprintf(&b, "1. Run `multica issue get %s --output json` to understand the issue context\n", ctx.IssueID)
-		fmt.Fprintf(&b, "2. Run `multica issue comment list %s --output json` to read the conversation\n", ctx.IssueID)
-		b.WriteString("   - If the output is very large or truncated, use pagination: `--limit 30` to get the latest 30 comments, or `--since <timestamp>` to fetch only recent ones\n")
-		fmt.Fprintf(&b, "3. Find the triggering comment (ID: `%s`) and understand what is being asked\n", ctx.TriggerCommentID)
-		fmt.Fprintf(&b, "4. Reply: `multica issue comment add %s --parent %s --content \"...\"`\n", ctx.IssueID, ctx.TriggerCommentID)
-		b.WriteString("5. If the comment requests code changes or further work, do the work first, then reply with your results\n")
-		b.WriteString("6. Do NOT change the issue status unless the comment explicitly asks for it\n\n")
+		b.WriteString("**CRITICAL: This is a REPLY task.** Your job is to answer the triggering comment directly.\n\n")
+		fmt.Fprintf(&b, "1. Run `multica issue comment get %s --output json` to read the exact question asked.\n", ctx.TriggerCommentID)
+		fmt.Fprintf(&b, "2. Run `multica issue comment list %s --limit 5 --output json` to see recent conversation.\n", ctx.IssueID)
+		fmt.Fprintf(&b, "3. Answer the triggering comment (ID: %s) directly.\n", ctx.TriggerCommentID)
+		b.WriteString("4. **DO NOT give a self-introduction. DO NOT talk about your capabilities. Answer the question directly.**\n")
+		b.WriteString("5. Post your answer with:\n")
+		fmt.Fprintf(&b, "   `multica issue comment add %s --parent %s --content \"你的回答\"`\n", ctx.IssueID, ctx.TriggerCommentID)
+		b.WriteString("6. Do NOT change the issue status unless explicitly asked.\n\n")
 	} else {
 		// Assignment-triggered: defer to agent Skills for workflow specifics.
 		b.WriteString("You are responsible for managing the issue status throughout your work.\n\n")

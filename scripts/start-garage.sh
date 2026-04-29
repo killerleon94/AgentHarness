@@ -51,32 +51,23 @@ detect_local_garage() {
     fi
 
     if [ -z "$detected_endpoint" ]; then
+        local garage_bin=""
         if command -v garage >/dev/null 2>&1; then
             garage_bin="garage"
         elif [ -x "/usr/local/bin/garage" ]; then
             garage_bin="/usr/local/bin/garage"
         elif [ -x "$HOME/garage/bin/garage" ]; then
             garage_bin="$HOME/garage/bin/garage"
-        else
-            return 1
         fi
 
-        if [ -f "$GARAGE_DIR/garage.toml" ]; then
-            log "Found Garage config at $GARAGE_DIR/garage.toml"
-            local s3_bind
-            local admin_bind
-            s3_bind=$(grep -A5 '\[s3_api\]' "$GARAGE_DIR/garage.toml" 2>/dev/null | grep 'api_bind_addr' | sed 's/.*= *//' | tr -d '"' || echo "")
-            admin_bind=$(grep 'admin_token' "$GARAGE_DIR/garage.toml" 2>/dev/null | head -1 || echo "")
-            if [ -n "$s3_bind" ]; then
-                log "Garage config found but service not responding"
-                return 1
-            fi
+        if [ -n "$garage_bin" ] && [ -f "$GARAGE_DIR/garage.toml" ]; then
+            log "Found Garage binary and config"
         fi
     fi
 
     if [ -n "$detected_endpoint" ]; then
-        echo "$detected_endpoint"
-        echo "$detected_admin"
+        echo "ENDPOINT=$detected_endpoint"
+        echo "ADMIN=$detected_admin"
         return 0
     fi
 
@@ -84,21 +75,23 @@ detect_local_garage() {
 }
 
 read_credentials() {
+    local access_key=""
+    local secret_key=""
+
     if [ -f "$GARAGE_CREDENTIALS" ]; then
         log "Reading credentials from $GARAGE_CREDENTIALS"
-        set -a
-        . "$GARAGE_CREDENTIALS"
-        set +a
+        while IFS= read -r line; do
+            case "$line" in
+                AWS_ACCESS_KEY_ID=*) access_key="${line#*=}" ;;
+                AWS_SECRET_ACCESS_KEY=*) secret_key="${line#*=}" ;;
+                GARAGE_ACCESS_KEY=*) access_key="${line#*=}" ;;
+                GARAGE_SECRET_KEY=*) secret_key="${line#*=}" ;;
+            esac
+        done < "$GARAGE_CREDENTIALS"
 
-        if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
-            echo "$AWS_ACCESS_KEY_ID"
-            echo "$AWS_SECRET_ACCESS_KEY"
-            return 0
-        fi
-
-        if [ -n "$GARAGE_ACCESS_KEY" ] && [ -n "$GARAGE_SECRET_KEY" ]; then
-            echo "$GARAGE_ACCESS_KEY"
-            echo "$GARAGE_SECRET_KEY"
+        if [ -n "$access_key" ] && [ -n "$secret_key" ]; then
+            echo "ACCESS_KEY=$access_key"
+            echo "SECRET_KEY=$secret_key"
             return 0
         fi
     fi
@@ -113,13 +106,11 @@ read_credentials() {
             keys_json=$(curl -sf "http://${GARAGE_HOST}:${GARAGE_ADMIN_PORT}/v0/key/list" \
                 -H "Authorization: Bearer $admin_token" 2>/dev/null || echo "")
             if [ -n "$keys_json" ]; then
-                local key_id
-                local secret
-                key_id=$(echo "$keys_json" | python3 -c "import sys,json; keys=json.load(sys.stdin).get('keys',[]); print(keys[0]['access_key_id'] if keys else '')" 2>/dev/null || echo "")
-                secret=$(echo "$keys_json" | python3 -c "import sys,json; keys=json.load(sys.stdin).get('keys',[]); print(keys[0]['secret_access_key'] if keys else '')" 2>/dev/null || echo "")
-                if [ -n "$key_id" ]; then
-                    echo "$key_id"
-                    echo "$secret"
+                access_key=$(echo "$keys_json" | python3 -c "import sys,json; keys=json.load(sys.stdin).get('keys',[]); print(keys[0]['access_key_id'] if keys else '')" 2>/dev/null || echo "")
+                secret_key=$(echo "$keys_json" | python3 -c "import sys,json; keys=json.load(sys.stdin).get('keys',[]); print(keys[0]['secret_access_key'] if keys else '')" 2>/dev/null || echo "")
+                if [ -n "$access_key" ]; then
+                    echo "ACCESS_KEY=$access_key"
+                    echo "SECRET_KEY=$secret_key"
                     return 0
                 fi
             fi
@@ -152,62 +143,86 @@ validate_connection() {
         return 0
     fi
 
-    if command -v mc >/dev/null 2>&1; then
-        if mc alias set garage "$endpoint" "$access_key" "$secret_key" >/dev/null 2>&1; then
-            if mc ls garage/"$BUCKET_NAME" >/dev/null 2>&1; then
-                rm -f "$test_file"
-                log "Connection validation successful (via mc)"
-                return 0
-            fi
-        fi
-    fi
-
     rm -f "$test_file"
-    log "Connection validation failed - credentials may be invalid"
+    log "Connection validation failed - aws cli not available or credentials invalid"
     return 1
 }
 
+print_env() {
+    local endpoint=$1
+    local access_key=$2
+    local secret_key=$3
+
+    echo ""
+    log "Add these to your .env.production:"
+    echo ""
+    echo "S3_BUCKET=$BUCKET_NAME"
+    echo "S3_REGION=garage"
+    echo "AWS_ENDPOINT_URL=$endpoint"
+    echo "AWS_ACCESS_KEY_ID=$access_key"
+    echo "AWS_SECRET_ACCESS_KEY=$secret_key"
+    echo ""
+}
+
 detect() {
-    local endpoint
-    local admin
-    local creds
+    local garage_output
+    local endpoint=""
+    local admin=""
+    local access_key=""
+    local secret_key=""
 
-    if detect_local_garage >/dev/null 2>&1; then
-        while IFS read -r line; do
-            if [ -z "$endpoint" ]; then
-                endpoint="$line"
-            elif [ -z "$admin" ]; then
-                admin="$line"
-            fi
-        done < <(detect_local_garage)
-
-        log "Local Garage detected:"
-        log "  S3 API: $endpoint"
-        log "  Admin API: $admin"
-
-        if read_credentials >/dev/null 2>&1; then
-            local access_key
-            local secret_key
-            access_key=$(read_credentials | sed -n '1p')
-            secret_key=$(read_credentials | sed -n '2p')
-
-            if validate_connection "$endpoint" "$access_key" "$secret_key"; then
-                log "Credentials validated successfully"
-                print_env "$endpoint" "$access_key" "$secret_key"
-                return 0
-            fi
-        fi
-
-        log "Garage is running but credentials could not be read"
-        log "Please ensure GARAGE_CREDENTIALS file exists or provide credentials manually"
-        return 1
-    else
+    garage_output=$(detect_local_garage 2>&1) || {
         log "No local Garage detected"
         log ""
         log "To connect to a remote Garage, run:"
-        log "  ./start-garage.sh connect http://YOUR_GARAGE_HOST:9000"
+        log "  AWS_ACCESS_KEY_ID=xxx AWS_SECRET_ACCESS_KEY=xxx ./start-garage.sh connect http://YOUR_GARAGE_HOST:9000"
+        return 1
+    }
+
+    while IFS= read -r line; do
+        case "$line" in
+            ENDPOINT=*) endpoint="${line#*=}" ;;
+            ADMIN=*) admin="${line#*=}" ;;
+        esac
+    done <<< "$garage_output"
+
+    if [ -z "$endpoint" ]; then
+        log "Garage detection failed"
         return 1
     fi
+
+    log "Local Garage detected:"
+    log "  S3 API: $endpoint"
+    log "  Admin API: $admin"
+
+    local creds_output
+    creds_output=$(read_credentials 2>&1) || {
+        log "Garage is running but credentials could not be read"
+        log "Please ensure $GARAGE_CREDENTIALS exists or provide credentials manually"
+        return 1
+    }
+
+    while IFS= read -r line; do
+        case "$line" in
+            ACCESS_KEY=*) access_key="${line#*=}" ;;
+            SECRET_KEY=*) secret_key="${line#*=}" ;;
+        esac
+    done <<< "$creds_output"
+
+    if [ -z "$access_key" ] || [ -z "$secret_key" ]; then
+        log "Credentials not found"
+        return 1
+    fi
+
+    log "Credentials found"
+    log "Access Key: ${access_key:0:8}..."
+
+    validate_connection "$endpoint" "$access_key" "$secret_key" || {
+        log "Connection validation failed"
+        return 1
+    }
+
+    print_env "$endpoint" "$access_key" "$secret_key"
 }
 
 connect() {
@@ -227,7 +242,7 @@ connect() {
         return 1
     fi
 
-    if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+    if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
         error "Credentials required: set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables"
         error ""
         error "Example:"
@@ -244,67 +259,55 @@ connect() {
     fi
 }
 
-print_env() {
-    local endpoint=$1
-    local access_key=$2
-    local secret_key=$3
-
-    echo ""
-    log "Add these to your .env.production:"
-    echo ""
-    echo "S3_BUCKET=$BUCKET_NAME"
-    echo "S3_REGION=garage"
-    echo "AWS_ENDPOINT_URL=$endpoint"
-    echo "AWS_ACCESS_KEY_ID=$access_key"
-    echo "AWS_SECRET_ACCESS_KEY=$secret_key"
-    echo ""
-}
-
 status() {
-    local endpoint
-    local admin
+    local garage_output
+    local endpoint=""
+    local admin=""
+    local access_key=""
+    local secret_key=""
 
-    if detect_local_garage >/dev/null 2>&1; then
-        while IFS read -r line; do
-            if [ -z "$endpoint" ]; then
-                endpoint="$line"
-            elif [ -z "$admin" ]; then
-                admin="$line"
-            fi
-        done < <(detect_local_garage)
-
-        echo "Local Garage: running"
-        echo "S3 API: $endpoint"
-
-        if [ -n "$admin" ]; then
-            if curl -sf "$admin/" > /dev/null 2>&1; then
-                echo "Admin API: $admin (healthy)"
-            else
-                echo "Admin API: $admin (unreachable)"
-            fi
-        fi
-
-        if read_credentials >/dev/null 2>&1; then
-            local access_key
-            local secret_key
-            access_key=$(read_credentials | sed -n '1p')
-            secret_key=$(read_credentials | sed -n '2p')
-            echo "Credentials: found"
-            echo "Access Key: ${access_key:0:8}..."
-
-            if validate_connection "$endpoint" "$access_key" "$secret_key"; then
-                echo "Connection: valid"
-            else
-                echo "Connection: invalid"
-            fi
-        else
-            echo "Credentials: not found"
-        fi
-    else
+    garage_output=$(detect_local_garage 2>&1) || {
         echo "Local Garage: not running"
         echo ""
         echo "To check a remote Garage:"
         echo "  AWS_ACCESS_KEY_ID=xxx AWS_SECRET_ACCESS_KEY=xxx ./start-garage.sh status http://remote:9000"
+        return 0
+    }
+
+    while IFS= read -r line; do
+        case "$line" in
+            ENDPOINT=*) endpoint="${line#*=}" ;;
+            ADMIN=*) admin="${line#*=}" ;;
+        esac
+    done <<< "$garage_output"
+
+    echo "Local Garage: running"
+    echo "S3 API: $endpoint"
+
+    if [ -n "$admin" ]; then
+        if curl -sf "$admin/" > /dev/null 2>&1; then
+            echo "Admin API: $admin (healthy)"
+        else
+            echo "Admin API: $admin (unreachable)"
+        fi
+    fi
+
+    local creds_output
+    creds_output=$(read_credentials 2>&1) || {
+        echo "Credentials: not found"
+        return 0
+    }
+
+    while IFS= read -r line; do
+        case "$line" in
+            ACCESS_KEY=*) access_key="${line#*=}" ;;
+            SECRET_KEY=*) secret_key="${line#*=}" ;;
+        esac
+    done <<< "$creds_output"
+
+    if [ -n "$access_key" ]; then
+        echo "Credentials: found"
+        echo "Access Key: ${access_key:0:8}..."
     fi
 }
 
@@ -313,12 +316,15 @@ env_cmd() {
     local access_key="${AWS_ACCESS_KEY_ID:-}"
     local secret_key="${AWS_SECRET_ACCESS_KEY:-}"
 
-    if [ -z "$access_key" ] || [ -z "$secret_key" ]; then
-        if read_credentials >/dev/null 2>&1; then
-            access_key=$(read_credentials | sed -n '1p')
-            secret_key=$(read_credentials | sed -n '2p')
-        fi
-    fi
+    local creds_output
+    creds_output=$(read_credentials 2>&1) || true
+
+    while IFS= read -r line; do
+        case "$line" in
+            ACCESS_KEY=*) access_key="${line#*=}" ;;
+            SECRET_KEY=*) secret_key="${line#*=}" ;;
+        esac
+    done <<< "$creds_output"
 
     if [ -n "$access_key" ] && [ -n "$secret_key" ]; then
         print_env "$endpoint" "$access_key" "$secret_key"

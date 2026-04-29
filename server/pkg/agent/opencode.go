@@ -97,7 +97,7 @@ func (b *opencodeBackend) Execute(ctx context.Context, prompt string, opts ExecO
 			scanResult.errMsg = fmt.Sprintf("opencode exited with error: %v", exitErr)
 		}
 
-		b.cfg.Logger.Info("opencode finished", "pid", cmd.Process.Pid, "status", scanResult.status, "duration", duration.Round(time.Millisecond).String())
+		b.cfg.Logger.Info("opencode finished", "pid", cmd.Process.Pid, "status", scanResult.status, "duration", duration.Round(time.Millisecond).String(), "usage", scanResult.usage)
 
 		// Build usage map. OpenCode doesn't report model per-step, so we
 		// attribute all usage to the configured model (or "unknown").
@@ -312,8 +312,8 @@ type opencodeEventPart struct {
 
 // opencodeTokens represents token usage in a step_finish event.
 type opencodeTokens struct {
-	Input  int64              `json:"input"`
-	Output int64              `json:"output"`
+	Input  int64                `json:"input"`
+	Output int64                `json:"output"`
 	Cache  *opencodeCacheTokens `json:"cache,omitempty"`
 }
 

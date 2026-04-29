@@ -151,6 +151,33 @@ func (h *Handler) GetRuntimeUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If no runtime_usage records (e.g. for providers without CLI log scanning
+	// like opencode, openclaw, hermes), fall back to aggregating from task_usage.
+	if len(rows) == 0 {
+		since := time.Now().AddDate(0, 0, -int(limit))
+		slog.Info("GetRuntimeUsage fallback query", "workspace_id", rt.WorkspaceID, "provider", rt.Provider, "since", since)
+		taskRows, err := h.Queries.GetRuntimeUsageByProvider(r.Context(), db.GetRuntimeUsageByProviderParams{
+			WorkspaceID: rt.WorkspaceID,
+			Provider:    rt.Provider,
+			Column3:     pgtype.Timestamptz{Time: since, Valid: true},
+		})
+		slog.Info("GetRuntimeUsage fallback result", "task_rows", len(taskRows), "error", err)
+		if err == nil && len(taskRows) > 0 {
+			for _, row := range taskRows {
+				rows = append(rows, db.RuntimeUsage{
+					RuntimeID:        parseUUID(runtimeID),
+					Date:             pgtype.Date{Time: row.Date.Time, Valid: true},
+					Provider:         rt.Provider,
+					Model:            row.Model,
+					InputTokens:      row.TotalInputTokens,
+					OutputTokens:     row.TotalOutputTokens,
+					CacheReadTokens:  row.TotalCacheReadTokens,
+					CacheWriteTokens: row.TotalCacheWriteTokens,
+				})
+			}
+		}
+	}
+
 	resp := make([]RuntimeUsageResponse, len(rows))
 	for i, row := range rows {
 		resp[i] = RuntimeUsageResponse{

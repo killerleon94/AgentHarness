@@ -44,6 +44,69 @@ func (q *Queries) GetIssueUsageSummary(ctx context.Context, issueID pgtype.UUID)
 	return i, err
 }
 
+const getRuntimeUsageByProvider = `-- name: GetRuntimeUsageByProvider :many
+SELECT
+    DATE(atq.created_at) AS date,
+    tu.provider,
+    tu.model,
+    SUM(tu.input_tokens)::bigint AS total_input_tokens,
+    SUM(tu.output_tokens)::bigint AS total_output_tokens,
+    SUM(tu.cache_read_tokens)::bigint AS total_cache_read_tokens,
+    SUM(tu.cache_write_tokens)::bigint AS total_cache_write_tokens
+FROM task_usage tu
+JOIN agent_task_queue atq ON atq.id = tu.task_id
+JOIN agent a ON a.id = atq.agent_id
+WHERE a.workspace_id = $1
+  AND tu.provider = $2
+  AND atq.created_at >= $3::timestamptz
+GROUP BY DATE(atq.created_at), tu.provider, tu.model
+ORDER BY DATE(atq.created_at) DESC
+`
+
+type GetRuntimeUsageByProviderParams struct {
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	Provider    string             `json:"provider"`
+	Column3     pgtype.Timestamptz `json:"column_3"`
+}
+
+type GetRuntimeUsageByProviderRow struct {
+	Date                  pgtype.Date `json:"date"`
+	Provider              string      `json:"provider"`
+	Model                 string      `json:"model"`
+	TotalInputTokens      int64       `json:"total_input_tokens"`
+	TotalOutputTokens     int64       `json:"total_output_tokens"`
+	TotalCacheReadTokens  int64       `json:"total_cache_read_tokens"`
+	TotalCacheWriteTokens int64       `json:"total_cache_write_tokens"`
+}
+
+func (q *Queries) GetRuntimeUsageByProvider(ctx context.Context, arg GetRuntimeUsageByProviderParams) ([]GetRuntimeUsageByProviderRow, error) {
+	rows, err := q.db.Query(ctx, getRuntimeUsageByProvider, arg.WorkspaceID, arg.Provider, arg.Column3)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetRuntimeUsageByProviderRow{}
+	for rows.Next() {
+		var i GetRuntimeUsageByProviderRow
+		if err := rows.Scan(
+			&i.Date,
+			&i.Provider,
+			&i.Model,
+			&i.TotalInputTokens,
+			&i.TotalOutputTokens,
+			&i.TotalCacheReadTokens,
+			&i.TotalCacheWriteTokens,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTaskUsage = `-- name: GetTaskUsage :many
 SELECT id, task_id, provider, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, created_at FROM task_usage
 WHERE task_id = $1

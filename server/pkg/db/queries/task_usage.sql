@@ -56,3 +56,21 @@ SELECT
 FROM task_usage tu
 JOIN agent_task_queue atq ON atq.id = tu.task_id
 WHERE atq.issue_id = $1;
+
+-- name: GetRuntimeUsageByProvider :many
+SELECT
+    DATE(atq.created_at) AS date,
+    tu.provider,
+    tu.model,
+    SUM(tu.input_tokens)::bigint AS total_input_tokens,
+    SUM(tu.output_tokens)::bigint AS total_output_tokens,
+    SUM(tu.cache_read_tokens)::bigint AS total_cache_read_tokens,
+    SUM(tu.cache_write_tokens)::bigint AS total_cache_write_tokens
+FROM task_usage tu
+JOIN agent_task_queue atq ON atq.id = tu.task_id
+JOIN agent a ON a.id = atq.agent_id
+WHERE a.workspace_id = $1
+  AND tu.provider = $2
+  AND atq.created_at >= $3::timestamptz
+GROUP BY DATE(atq.created_at), tu.provider, tu.model
+ORDER BY DATE(atq.created_at) DESC;

@@ -82,7 +82,7 @@ type Result struct {
 
 // Config configures a Backend instance.
 type Config struct {
-	ExecutablePath string            // path to CLI binary (claude, codex, opencode, openclaw, or hermes)
+	ExecutablePath string            // path to CLI binary (claude, codex, kimi, claw, opencode, openclaw, or hermes)
 	Env            map[string]string // extra environment variables
 	Logger         *slog.Logger
 }
@@ -105,8 +105,12 @@ func New(agentType string, cfg Config) (Backend, error) {
 		return &openclawBackend{cfg: cfg}, nil
 	case "hermes":
 		return &hermesBackend{cfg: cfg}, nil
+	case "claw":
+		return &clawBackend{cfg: cfg}, nil
+	case "kimi":
+		return &kimiBackend{cfg: cfg}, nil
 	default:
-		return nil, fmt.Errorf("unknown agent type: %q (supported: claude, codex, opencode, openclaw, hermes)", agentType)
+		return nil, fmt.Errorf("unknown agent type: %q (supported: claude, codex, opencode, openclaw, hermes, claw, kimi)", agentType)
 	}
 }
 

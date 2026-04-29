@@ -852,9 +852,12 @@ func (d *Daemon) handleTask(ctx context.Context, task Task) {
 
 	// Report usage independently so it's captured even for failed/blocked tasks.
 	if len(result.Usage) > 0 {
+		taskLog.Info("reporting task usage", "usage", result.Usage)
 		if err := d.client.ReportTaskUsage(ctx, task.ID, result.Usage); err != nil {
 			taskLog.Warn("report task usage failed", "error", err)
 		}
+	} else {
+		taskLog.Info("no task usage to report", "provider", provider)
 	}
 
 	switch result.Status {

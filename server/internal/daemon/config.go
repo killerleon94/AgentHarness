@@ -106,8 +106,29 @@ func LoadConfig(overrides Overrides) (Config, error) {
 			Model: strings.TrimSpace(os.Getenv("MULTICA_HERMES_MODEL")),
 		}
 	}
+	kimiPath := envOrDefault("MULTICA_KIMI_PATH", "kimi")
+	if _, err := exec.LookPath(kimiPath); err == nil {
+		agents["kimi"] = AgentEntry{
+			Path:  kimiPath,
+			Model: strings.TrimSpace(os.Getenv("MULTICA_KIMI_MODEL")),
+		}
+	}
+	traePath := envOrDefault("MULTICA_TRAE_PATH", "traecli")
+	if _, err := exec.LookPath(traePath); err == nil {
+		agents["trae"] = AgentEntry{
+			Path:  traePath,
+			Model: strings.TrimSpace(os.Getenv("MULTICA_TRAE_MODEL")),
+		}
+	}
+	clawPath := envOrDefault("MULTICA_CLAW_PATH", "claw")
+	if _, err := exec.LookPath(clawPath); err == nil {
+		agents["claw"] = AgentEntry{
+			Path:  clawPath,
+			Model: strings.TrimSpace(os.Getenv("MULTICA_CLAW_MODEL")),
+		}
+	}
 	if len(agents) == 0 {
-		return Config{}, fmt.Errorf("no agent CLI found: install claude, codex, opencode, openclaw, or hermes and ensure it is on PATH")
+		return Config{}, fmt.Errorf("no agent CLI found: install claude, codex, opencode, openclaw, hermes, kimi, trae, or claw and ensure it is on PATH")
 	}
 
 	// Host info

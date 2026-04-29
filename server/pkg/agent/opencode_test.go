@@ -495,13 +495,13 @@ func TestOpencodeProcessEventsHappyPath(t *testing.T) {
 	b := &opencodeBackend{cfg: Config{Logger: slog.Default()}}
 	ch := make(chan Message, 256)
 
-	// Simulate a successful run: step_start → text → tool_use → text → step_finish
+	// Simulate a successful run: step_start → text → tool_use → text → step_finish (with tokens)
 	lines := strings.Join([]string{
 		`{"type":"step_start","timestamp":1000,"sessionID":"ses_happy","part":{"type":"step-start"}}`,
 		`{"type":"text","timestamp":1001,"sessionID":"ses_happy","part":{"type":"text","text":"Analyzing the issue..."}}`,
 		`{"type":"tool_use","timestamp":1002,"sessionID":"ses_happy","part":{"tool":"bash","callID":"call_1","state":{"status":"completed","input":{"command":"ls"},"output":"file1.go\nfile2.go\n"}}}`,
 		`{"type":"text","timestamp":1003,"sessionID":"ses_happy","part":{"type":"text","text":" Done."}}`,
-		`{"type":"step_finish","timestamp":1004,"sessionID":"ses_happy","part":{"type":"step-finish"}}`,
+		`{"type":"step_finish","timestamp":1004,"sessionID":"ses_happy","part":{"type":"step-finish","tokens":{"total":14674,"input":14585,"output":89,"reasoning":82,"cache":{"write":0,"read":7808}}}}`,
 	}, "\n")
 
 	result := b.processEvents(strings.NewReader(lines), ch)
@@ -518,6 +518,12 @@ func TestOpencodeProcessEventsHappyPath(t *testing.T) {
 	}
 	if result.errMsg != "" {
 		t.Errorf("errMsg: got %q, want empty", result.errMsg)
+	}
+	if result.usage.InputTokens == 0 || result.usage.OutputTokens == 0 {
+		t.Errorf("usage: got %+v, want non-zero tokens", result.usage)
+	}
+	if result.usage.CacheReadTokens != 7808 {
+		t.Errorf("usage.CacheReadTokens: got %d, want 7808", result.usage.CacheReadTokens)
 	}
 
 	// Drain and verify messages.
