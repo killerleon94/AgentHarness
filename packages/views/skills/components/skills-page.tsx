@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useDefaultLayout } from "react-resizable-panels";
 import {
   Sparkles,
   Plus,
@@ -9,6 +8,15 @@ import {
   Save,
   AlertCircle,
   Download,
+  Search,
+  X,
+  ChevronRight,
+  FileText,
+  Pencil,
+  Eye,
+  Code2,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import type { Skill, CreateSkillRequest, UpdateSkillRequest } from "@multica/core/types";
 import {
@@ -19,12 +27,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@multica/ui/components/ui/dialog";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@multica/ui/components/ui/resizable";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@multica/ui/components/ui/tooltip";
 import { Badge } from "@multica/ui/components/ui/badge";
 import { Button } from "@multica/ui/components/ui/button";
 import { Input } from "@multica/ui/components/ui/input";
@@ -32,15 +34,87 @@ import { Label } from "@multica/ui/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@multica/ui/components/ui/tabs";
 import { toast } from "sonner";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { api } from "@multica/core/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@multica/core/auth";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useTranslation } from "@multica/core";
 import { skillListOptions, workspaceKeys } from "@multica/core/workspace/queries";
+import { cn } from "@multica/ui/lib/utils";
+import { Markdown } from "../../common/markdown";
 
-import { FileTree } from "./file-tree";
-import { FileViewer } from "./file-viewer";
+const SKILL_MD = "SKILL.md";
+
+function buildFileMap(
+  content: string,
+  files: { path: string; content: string }[],
+): Map<string, string> {
+  const map = new Map<string, string>();
+  map.set(SKILL_MD, content);
+  for (const f of files) {
+    if (f.path.trim()) map.set(f.path, f.content);
+  }
+  return map;
+}
+
+function parseFrontmatter(raw: string): {
+  frontmatter: Record<string, string> | null;
+  body: string;
+} {
+  const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+  const match = FRONTMATTER_RE.exec(raw);
+  if (!match) return { frontmatter: null, body: raw };
+
+  const yamlBlock = match[1]!;
+  const body = raw.slice(match[0].length);
+  const frontmatter: Record<string, string> = {};
+
+  for (const line of yamlBlock.split("\n")) {
+    const idx = line.indexOf(":");
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim();
+    let value = line.slice(idx + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (key) frontmatter[key] = value;
+  }
+
+  return {
+    frontmatter: Object.keys(frontmatter).length > 0 ? frontmatter : null,
+    body,
+  };
+}
+
+function isMarkdown(path: string) {
+  return path.endsWith(".md") || path.endsWith(".mdx");
+}
+
+function getFileIcon(name: string) {
+  if (name.endsWith(".md") || name.endsWith(".mdx")) return FileText;
+  return Code2;
+}
+
+function FrontmatterCard({ data }: { data: Record<string, string> }) {
+  return (
+    <div className="mb-4 rounded-xl border bg-gradient-to-br from-primary/5 to-transparent px-4 py-3 backdrop-blur-sm">
+      <div className="grid gap-1.5">
+        {Object.entries(data).map(([key, value]) => (
+          <div key={key} className="flex gap-2 text-xs">
+            <span className="shrink-0 font-medium text-muted-foreground min-w-[80px]">
+              {key}
+            </span>
+            <span className="text-foreground">{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Create Skill Dialog
@@ -96,21 +170,26 @@ function CreateSkillDialog({
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md border-primary/20 bg-gradient-to-br from-background to-primary/5">
         <DialogHeader>
-          <DialogTitle>{t("skills.addSkill", "Add Skill")}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+            {t("skills.addSkill", "Add Skill")}
+          </DialogTitle>
           <DialogDescription>
             {t("skills.addSkillDescription", "Create a new skill or import from ClawHub / Skills.sh.")}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as "create" | "import")}>
-          <TabsList className="w-full">
-            <TabsTrigger value="create" className="flex-1">
+          <TabsList className="w-full bg-muted/50">
+            <TabsTrigger value="create" className="flex-1 data-[state=active]:bg-background">
               <Plus className="mr-1.5 h-3 w-3" />
               {t("skills.create", "Create")}
             </TabsTrigger>
-            <TabsTrigger value="import" className="flex-1">
+            <TabsTrigger value="import" className="flex-1 data-[state=active]:bg-background">
               <Download className="mr-1.5 h-3 w-3" />
               {t("skills.import", "Import")}
             </TabsTrigger>
@@ -125,7 +204,7 @@ function CreateSkillDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t("skills.namePlaceholder", "e.g. Code Review, Bug Triage")}
-                className="mt-1"
+                className="mt-1 bg-background/80 border-primary/10 focus:border-primary/30"
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               />
             </div>
@@ -136,7 +215,7 @@ function CreateSkillDialog({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t("skills.descriptionPlaceholder", "Brief description of what this skill does")}
-                className="mt-1"
+                className="mt-1 bg-background/80 border-primary/10 focus:border-primary/30"
               />
             </div>
           </TabsContent>
@@ -150,7 +229,7 @@ function CreateSkillDialog({
                 value={importUrl}
                 onChange={(e) => { setImportUrl(e.target.value); setImportError(""); }}
                 placeholder={t("skills.skillUrlPlaceholder", "Paste a skill URL...")}
-                className="mt-1"
+                className="mt-1 bg-background/80 border-primary/10 focus:border-primary/30 font-mono text-sm"
                 onKeyDown={(e) => e.key === "Enter" && handleImport()}
               />
             </div>
@@ -158,21 +237,23 @@ function CreateSkillDialog({
             <div>
               <p className="text-xs text-muted-foreground mb-2">{t("skills.supportedSources", "Supported sources")}</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className={`rounded-lg border px-3 py-2.5 transition-colors ${
+                <div className={cn(
+                  "rounded-lg border px-3 py-2.5 transition-all duration-200 cursor-pointer",
                   detectedSource === "clawhub"
-                    ? "border-primary bg-primary/5"
-                    : ""
-                }`}>
+                    ? "border-primary bg-primary/10 shadow-sm shadow-primary/20"
+                    : "hover:border-primary/30 bg-muted/30"
+                )}>
                   <div className="text-xs font-medium">ClawHub</div>
                   <div className="mt-0.5 truncate text-[11px] text-muted-foreground font-mono">
                     clawhub.ai/owner/skill
                   </div>
                 </div>
-                <div className={`rounded-lg border px-3 py-2.5 transition-colors ${
+                <div className={cn(
+                  "rounded-lg border px-3 py-2.5 transition-all duration-200 cursor-pointer",
                   detectedSource === "skills.sh"
-                    ? "border-primary bg-primary/5"
-                    : ""
-                }`}>
+                    ? "border-primary bg-primary/10 shadow-sm shadow-primary/20"
+                    : "hover:border-primary/30 bg-muted/30"
+                )}>
                   <div className="text-xs font-medium">Skills.sh</div>
                   <div className="mt-0.5 truncate text-[11px] text-muted-foreground font-mono">
                     skills.sh/owner/repo/skill
@@ -182,7 +263,7 @@ function CreateSkillDialog({
             </div>
 
             {importError && (
-              <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive border border-destructive/20">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 {importError}
               </div>
@@ -193,11 +274,11 @@ function CreateSkillDialog({
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>{t("skills.cancel", "Cancel")}</Button>
           {tab === "create" ? (
-            <Button onClick={handleCreate} disabled={loading || !name.trim()}>
+            <Button onClick={handleCreate} disabled={loading || !name.trim()} className="bg-gradient-to-r from-primary to-primary/80">
               {loading ? t("skills.creating", "Creating...") : t("skills.create", "Create")}
             </Button>
           ) : (
-            <Button onClick={handleImport} disabled={loading || !importUrl.trim()}>
+            <Button onClick={handleImport} disabled={loading || !importUrl.trim()} className="bg-gradient-to-r from-primary to-primary/80">
               {loading ? (
                 detectedSource === "clawhub"
                   ? t("skills.importingFromClawHub", "Importing from ClawHub...")
@@ -219,10 +300,10 @@ function CreateSkillDialog({
 }
 
 // ---------------------------------------------------------------------------
-// Skill List Item
+// Skill Card (Bento Grid Style)
 // ---------------------------------------------------------------------------
 
-function SkillListItem({
+function SkillCard({
   skill,
   isSelected,
   onClick,
@@ -231,54 +312,62 @@ function SkillListItem({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const fileCount = skill.files?.length ?? 0;
+  
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
-        isSelected ? "bg-accent" : "hover:bg-accent/50"
-      }`}
-    >
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-        <Sparkles className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{skill.name}</div>
-        {skill.description && (
-          <div className="mt-0.5 truncate text-xs text-muted-foreground">
-            {skill.description}
-          </div>
-        )}
-      </div>
-      {(skill.files?.length ?? 0) > 0 && (
-        <Badge variant="secondary">
-          {skill.files.length} file{skill.files.length !== 1 ? "s" : ""}
-        </Badge>
+      className={cn(
+        "group relative w-full text-left p-5 rounded-2xl border transition-all duration-300 cursor-pointer",
+        "hover:shadow-lg hover:shadow-primary/5",
+        isSelected 
+          ? "bg-gradient-to-br from-primary/10 to-primary/5 border-primary/30 shadow-lg shadow-primary/10" 
+          : "bg-background/80 hover:bg-gradient-to-br hover:from-primary/5 hover:to-transparent border-border/50 hover:border-primary/20"
       )}
+    >
+      <div className="flex items-start gap-4">
+        <div className={cn(
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all duration-300",
+          isSelected 
+            ? "bg-gradient-to-br from-primary to-primary/60 shadow-lg shadow-primary/30" 
+            : "bg-muted group-hover:bg-primary/10"
+        )}>
+          <Sparkles className={cn(
+            "h-5 w-5 transition-colors duration-300",
+            isSelected ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"
+          )} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className={cn(
+            "font-semibold truncate transition-colors duration-300",
+            isSelected ? "text-primary" : "group-hover:text-primary/80"
+          )}>
+            {skill.name}
+          </h3>
+          {skill.description && (
+            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+              {skill.description}
+            </p>
+          )}
+          {fileCount > 0 && (
+            <div className="mt-3 flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
+                {fileCount} file{fileCount !== 1 ? "s" : ""}
+              </Badge>
+            </div>
+          )}
+        </div>
+      </div>
+      <ChevronRight className={cn(
+        "absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-300",
+        isSelected ? "text-primary opacity-100" : "text-muted-foreground opacity-0 group-hover:opacity-100"
+      )} />
     </button>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Helpers: virtual file list for the tree
-// ---------------------------------------------------------------------------
-
-const SKILL_MD = "SKILL.md";
-
-/** Merge skill.content (as SKILL.md) + skill.files into a single map */
-function buildFileMap(
-  content: string,
-  files: { path: string; content: string }[],
-): Map<string, string> {
-  const map = new Map<string, string>();
-  map.set(SKILL_MD, content);
-  for (const f of files) {
-    if (f.path.trim()) map.set(f.path, f.content);
-  }
-  return map;
-}
-
-// ---------------------------------------------------------------------------
-// Add File Dialog
+// Skill Detail Drawer
 // ---------------------------------------------------------------------------
 
 function AddFileDialog({
@@ -311,7 +400,7 @@ function AddFileDialog({
             value={path}
             onChange={(e) => setPath(e.target.value)}
             placeholder={t("skills.filePathPlaceholder", "e.g. templates/review.md")}
-            className="mt-1 font-mono text-sm"
+            className="mt-1 font-mono text-sm bg-background/80"
             onKeyDown={(e) => {
               if (e.key === "Enter" && path.trim() && !duplicate) {
                 onAdd(path.trim());
@@ -337,16 +426,14 @@ function AddFileDialog({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Skill Detail — file-browser layout
-// ---------------------------------------------------------------------------
-
-function SkillDetail({
+function SkillDetailDrawer({
   skill,
+  onClose,
   onUpdate,
   onDelete,
 }: {
   skill: Skill;
+  onClose: () => void;
   onUpdate: (id: string, data: UpdateSkillRequest) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
@@ -364,15 +451,14 @@ function SkillDetail({
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showAddFile, setShowAddFile] = useState(false);
+  const [viewMode, setViewMode] = useState<"preview" | "edit">("preview");
 
-  // Sync basic fields from store updates
   useEffect(() => {
     setName(skill.name);
     setDescription(skill.description);
     setContent(skill.content);
   }, [skill.id, skill.name, skill.description, skill.content]);
 
-  // Fetch full skill (with files) on selection change
   useEffect(() => {
     setSelectedPath(SKILL_MD);
     setLoadingFiles(true);
@@ -384,10 +470,15 @@ function SkillDetail({
     }).finally(() => setLoadingFiles(false));
   }, [skill.id, qc, wsId]);
 
-  // Build the virtual file map
   const fileMap = useMemo(() => buildFileMap(content, files), [content, files]);
   const filePaths = useMemo(() => Array.from(fileMap.keys()), [fileMap]);
   const selectedContent = fileMap.get(selectedPath) ?? "";
+  const isMd = isMarkdown(selectedPath);
+
+  const { frontmatter, body } = useMemo(
+    () => (isMd ? parseFrontmatter(selectedContent) : { frontmatter: null, body: selectedContent }),
+    [selectedContent, isMd],
+  );
 
   const isDirty =
     name !== skill.name ||
@@ -427,6 +518,7 @@ function SkillDetail({
   const handleAddFile = (path: string) => {
     setFiles((prev) => [...prev, { path, content: "" }]);
     setSelectedPath(path);
+    setViewMode("edit");
   };
 
   const handleDeleteFile = () => {
@@ -436,177 +528,204 @@ function SkillDetail({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <Sparkles className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="grid grid-cols-2 gap-3 flex-1 min-w-0">
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-8 text-sm font-medium"
-              placeholder={t("skills.namePlaceholder", "Skill name")}
-            />
-            <Input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="h-8 text-sm"
-              placeholder={t("skills.descriptionPlaceholder", "Description")}
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-2 ml-3">
-          {isDirty && (
-            <Button onClick={handleSave} disabled={saving || !name.trim()} size="xs">
-              <Save className="h-3 w-3" />
-              {saving ? t("skills.saving", "Saving...") : t("skills.save", "Save")}
-            </Button>
-          )}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => setConfirmDelete(true)}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              }
-            />
-            <TooltipContent>{t("skills.deleteSkill", "Delete skill")}</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-
-      {/* File browser: tree + viewer */}
-      <div className="flex flex-1 min-h-0">
-        {/* File tree */}
-        <div className="w-52 shrink-0 border-r flex flex-col">
-          <div className="flex h-10 items-center justify-between border-b px-3">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {t("skills.files", "Files")}
-            </span>
-            <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => setShowAddFile(true)}
-                      className="text-muted-foreground"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
-                  }
+    <div className="fixed inset-0 z-50 flex">
+      <div 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative ml-auto h-full w-full max-w-4xl bg-background/95 backdrop-blur-xl border-l shadow-2xl animate-in slide-in-from-right duration-300">
+        {/* Header */}
+        <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-md">
+          <div className="flex items-center gap-4 px-6 py-4">
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-accent transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-8 text-sm font-semibold bg-transparent border-0 p-0 focus:ring-0 focus:outline-none focus:underline"
+                  placeholder={t("skills.namePlaceholder", "Skill name")}
                 />
-                <TooltipContent>{t("skills.addFile", "Add file")}</TooltipContent>
-              </Tooltip>
-              {selectedPath !== SKILL_MD && (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={handleDeleteFile}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    }
-                  />
-                  <TooltipContent>{t("skills.deleteFile", "Delete file")}</TooltipContent>
-                </Tooltip>
+                <Input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="h-6 text-xs text-muted-foreground bg-transparent border-0 p-0 focus:ring-0 focus:outline-none mt-0.5"
+                  placeholder={t("skills.descriptionPlaceholder", "Description")}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {isDirty && (
+                <Button onClick={handleSave} disabled={saving || !name.trim()} size="sm" className="bg-gradient-to-r from-primary to-primary/80">
+                  <Save className="h-3 w-3 mr-1" />
+                  {saving ? t("skills.saving", "Saving...") : t("skills.save", "Save")}
+                </Button>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmDelete(true)}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {loadingFiles ? (
-              <div className="p-3 space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </div>
-            ) : (
-              <FileTree
-                filePaths={filePaths}
-                selectedPath={selectedPath}
-                onSelect={setSelectedPath}
-              />
-            )}
+          
+          {/* File tabs */}
+          <div className="flex items-center gap-1 px-6 pb-3 overflow-x-auto">
+            {filePaths.map((path) => {
+              const Icon = getFileIcon(path);
+              const isSelected = path === selectedPath;
+              return (
+                <button
+                  key={path}
+                  onClick={() => setSelectedPath(path)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer",
+                    isSelected 
+                      ? "bg-primary/10 text-primary border border-primary/20" 
+                      : "hover:bg-accent text-muted-foreground"
+                  )}
+                >
+                  <Icon className="h-3 w-3" />
+                  {path === SKILL_MD ? "SKILL.md" : path.split("/").pop()}
+                  {path !== SKILL_MD && (
+                    <span 
+                      onClick={(e) => { e.stopPropagation(); handleDeleteFile(); }}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setShowAddFile(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-accent text-muted-foreground transition-colors cursor-pointer"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
           </div>
         </div>
 
-        {/* File viewer */}
-        <div className="flex-1 min-w-0">
+        {/* Content */}
+        <div className="h-[calc(100%-140px)] overflow-y-auto">
           {loadingFiles ? (
-            <div className="p-4 space-y-3">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-4/6" />
+            <div className="p-6 space-y-4">
+              <Skeleton className="h-6 w-48" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
             </div>
           ) : (
-          <FileViewer
-            key={selectedPath}
-            path={selectedPath}
-            content={selectedContent}
-            onChange={handleFileContentChange}
-          />
+            <div className="p-6">
+              {/* View mode toggle for markdown */}
+              {isMd && (
+                <div className="flex items-center justify-end gap-1 mb-4 p-1 bg-muted/50 rounded-lg w-fit ml-auto">
+                  <button
+                    onClick={() => setViewMode("preview")}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
+                      viewMode === "preview" 
+                        ? "bg-background shadow-sm text-foreground" 
+                        : "hover:text-foreground/70 text-muted-foreground"
+                    )}
+                  >
+                    <Eye className="h-3 w-3" />
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => setViewMode("edit")}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
+                      viewMode === "edit" 
+                        ? "bg-background shadow-sm text-foreground" 
+                        : "hover:text-foreground/70 text-muted-foreground"
+                    )}
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
+                </div>
+              )}
+
+              {isMd && viewMode === "preview" ? (
+                <div className="p-6">
+                  {frontmatter && <FrontmatterCard data={frontmatter} />}
+                  <Markdown mode="full">
+                    {body || "*No content yet*"}
+                  </Markdown>
+                </div>
+              ) : (
+                <textarea
+                  value={selectedContent}
+                  onChange={(e) => handleFileContentChange(e.target.value)}
+                  placeholder={
+                    isMd
+                      ? "Write markdown content..."
+                      : "File content..."
+                  }
+                  className="w-full min-h-[500px] resize-none rounded-xl border bg-background/50 p-4 font-mono text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
+                />
+              )}
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Add file dialog */}
-      {showAddFile && (
-        <AddFileDialog
-          existingPaths={filePaths}
-          onClose={() => setShowAddFile(false)}
-          onAdd={handleAddFile}
-        />
-      )}
+        {/* Add file dialog */}
+        {showAddFile && (
+          <AddFileDialog
+            existingPaths={filePaths}
+            onClose={() => setShowAddFile(false)}
+            onAdd={handleAddFile}
+          />
+        )}
 
-      {/* Delete Confirmation */}
-      {confirmDelete && (
-        <Dialog open onOpenChange={(v) => { if (!v) setConfirmDelete(false); }}>
-          <DialogContent className="max-w-sm" showCloseButton={false}>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
-                <AlertCircle className="h-5 w-5 text-destructive" />
+        {/* Delete Confirmation */}
+        {confirmDelete && (
+          <Dialog open onOpenChange={(v) => { if (!v) setConfirmDelete(false); }}>
+            <DialogContent className="max-w-sm" showCloseButton={false}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                </div>
+                <DialogHeader className="flex-1 gap-1">
+                  <DialogTitle className="text-sm font-semibold">{t("skills.deleteSkillTitle", "Delete skill?")}</DialogTitle>
+                  <DialogDescription className="text-xs">
+                    {t("skills.deleteSkillDescription", "This will permanently delete \"{name}\" and remove it from all agents.").replace("{name}", skill.name)}
+                  </DialogDescription>
+                </DialogHeader>
               </div>
-              <DialogHeader className="flex-1 gap-1">
-                <DialogTitle className="text-sm font-semibold">{t("skills.deleteSkillTitle", "Delete skill?")}</DialogTitle>
-                <DialogDescription className="text-xs">
-                  {t("skills.deleteSkillDescription", "This will permanently delete \"{name}\" and remove it from all agents.").replace("{name}", skill.name)}
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
-                {t("skills.cancel", "Cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  setConfirmDelete(false);
-                  onDelete(skill.id);
-                }}
-              >
-                {t("skills.delete", "Delete")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
+                  {t("skills.cancel", "Cancel")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setConfirmDelete(false);
+                    onDelete(skill.id);
+                  }}
+                >
+                  {t("skills.delete", "Delete")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     </div>
   );
 }
@@ -623,15 +742,19 @@ export default function SkillsPage() {
   const { data: skills = [] } = useQuery(skillListOptions(wsId));
   const [selectedId, setSelectedId] = useState<string>("");
   const [showCreate, setShowCreate] = useState(false);
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "multica_skills_layout",
-  });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewAs, setViewAs] = useState<"grid" | "list">("grid");
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  useEffect(() => {
-    if (skills.length > 0 && !selectedId) {
-      setSelectedId(skills[0]!.id);
-    }
-  }, [skills, selectedId]);
+  const filteredSkills = useMemo(() => {
+    if (!searchQuery.trim()) return skills;
+    const query = searchQuery.toLowerCase();
+    return skills.filter(
+      (s) =>
+        s.name.toLowerCase().includes(query) ||
+        s.description?.toLowerCase().includes(query)
+    );
+  }, [skills, searchQuery]);
 
   const handleCreate = async (data: CreateSkillRequest) => {
     const skill = await api.createSkill(data);
@@ -676,42 +799,16 @@ export default function SkillsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 min-h-0">
-        {/* List skeleton */}
-        <div className="w-72 border-r">
-          <div className="flex h-12 items-center justify-between border-b px-4">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-6 w-6 rounded" />
+      <div className="flex-1 min-h-0 p-6">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-10 w-32" />
           </div>
-          <div className="divide-y">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <Skeleton className="h-8 w-8 rounded-lg" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-40" />
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-32 rounded-2xl" />
             ))}
-          </div>
-        </div>
-        {/* Detail skeleton */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex items-center gap-3 border-b px-4 py-3">
-            <Skeleton className="h-8 w-8 rounded-lg" />
-            <Skeleton className="h-8 w-40" />
-            <Skeleton className="h-8 w-56" />
-          </div>
-          <div className="flex flex-1 min-h-0">
-            <div className="w-48 border-r p-3 space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-            <div className="flex-1 p-4 space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-2/3" />
-            </div>
           </div>
         </div>
       </div>
@@ -719,92 +816,145 @@ export default function SkillsPage() {
   }
 
   return (
-    <ResizablePanelGroup
-      orientation="horizontal"
-      className="flex-1 min-h-0"
-      defaultLayout={defaultLayout}
-      onLayoutChanged={onLayoutChanged}
-    >
-      <ResizablePanel id="list" defaultSize={280} minSize={240} maxSize={400} groupResizeBehavior="preserve-pixel-size">
-        {/* Left column — skill list */}
-        <div className="overflow-y-auto h-full border-r">
-          <div className="flex h-12 items-center justify-between border-b px-4">
-            <h1 className="text-sm font-semibold">{t("skills.title", "Skills")}</h1>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => setShowCreate(true)}
-                  >
-                    <Plus className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                }
-              />
-              <TooltipContent side="bottom">{t("skills.createSkill", "Create skill")}</TooltipContent>
-            </Tooltip>
+    <div className="flex-1 min-h-0 flex flex-col">
+      {/* Header */}
+      <div className="border-b bg-background/50 backdrop-blur-md">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold">{t("skills.title", "Skills")}</h1>
+              <p className="text-xs text-muted-foreground">{t("skills.skillsDescription", "Skills define reusable instructions for agents.")}</p>
+            </div>
           </div>
-          {skills.length === 0 ? (
-            <div className="flex flex-col items-center justify-center px-4 py-12">
-              <Sparkles className="h-8 w-8 text-muted-foreground/40" />
-              <p className="mt-3 text-sm text-muted-foreground">{t("skills.noSkillsYet", "No skills yet")}</p>
-              <p className="mt-1 text-xs text-muted-foreground text-center">
-                {t("skills.skillsDescription", "Skills define reusable instructions for agents.")}
-              </p>
+          <Button onClick={() => setShowCreate(true)} size="sm" className="bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20">
+            <Plus className="h-3 w-3 mr-1" />
+            {t("skills.createSkill", "Create Skill")}
+          </Button>
+        </div>
+
+        {/* Search and filters */}
+        <div className="flex items-center gap-3 px-6 pb-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("skills.searchPlaceholder", "Search skills...")}
+              className="pl-10 bg-muted/50 border-0 focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
+            <button
+              onClick={() => setViewAs("grid")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
+                viewAs === "grid" 
+                  ? "bg-background shadow-sm text-foreground" 
+                  : "hover:text-foreground/70 text-muted-foreground"
+              )}
+            >
+              <LayoutGrid className="h-3 w-3" />
+            </button>
+            <button
+              onClick={() => setViewAs("list")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer",
+                viewAs === "list" 
+                  ? "bg-background shadow-sm text-foreground" 
+                  : "hover:text-foreground/70 text-muted-foreground"
+              )}
+            >
+              <List className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <ScrollArea className="flex-1">
+        <div className="p-6">
+          {filteredSkills.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-muted to-muted/50 border border-border/50">
+                <Sparkles className="h-8 w-8 text-muted-foreground/40" />
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">{t("skills.noSkillsYet", "No skills yet")}</p>
               <Button
                 onClick={() => setShowCreate(true)}
-                size="xs"
-                className="mt-3"
+                size="sm"
+                className="mt-4 bg-gradient-to-r from-primary to-primary/80"
               >
-                <Plus className="h-3 w-3" />
+                <Plus className="h-3 w-3 mr-1" />
                 {t("skills.createSkill", "Create Skill")}
               </Button>
             </div>
-          ) : (
-            <div className="divide-y">
-              {skills.map((skill) => (
-                <SkillListItem
+          ) : viewAs === "grid" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredSkills.map((skill) => (
+                <SkillCard
                   key={skill.id}
                   skill={skill}
                   isSelected={skill.id === selectedId}
-                  onClick={() => setSelectedId(skill.id)}
+                  onClick={() => { setSelectedId(skill.id); setDrawerOpen(true); }}
                 />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredSkills.map((skill) => (
+                <button
+                  key={skill.id}
+                  onClick={() => { setSelectedId(skill.id); setDrawerOpen(true); }}
+                  className={cn(
+                    "group w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 cursor-pointer text-left",
+                    skill.id === selectedId 
+                      ? "bg-gradient-to-r from-primary/10 to-transparent border-primary/20" 
+                      : "hover:bg-muted/50 border-transparent"
+                  )}
+                >
+                  <div className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
+                    skill.id === selectedId ? "bg-primary/20" : "bg-muted group-hover:bg-primary/10"
+                  )}>
+                    <Sparkles className={cn(
+                      "h-4 w-4",
+                      skill.id === selectedId ? "text-primary" : "text-muted-foreground"
+                    )} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{skill.name}</div>
+                    {skill.description && (
+                      <div className="text-sm text-muted-foreground truncate">{skill.description}</div>
+                    )}
+                  </div>
+                  {(skill.files?.length ?? 0) > 0 && (
+                    <Badge variant="secondary" className="shrink-0">
+                      {skill.files.length}
+                    </Badge>
+                  )}
+                </button>
               ))}
             </div>
           )}
         </div>
-      </ResizablePanel>
+      </ScrollArea>
 
-      <ResizableHandle />
+      {/* Detail Drawer */}
+      {selected && drawerOpen && (
+        <SkillDetailDrawer
+          key={selected.id}
+          skill={selected}
+          onClose={() => setDrawerOpen(false)}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+        />
+      )}
 
-      <ResizablePanel id="detail" minSize="50%">
-        {/* Right column — skill detail */}
-        <div className="flex-1 overflow-hidden h-full">
-          {selected ? (
-            <SkillDetail
-              key={selected.id}
-              skill={selected}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
-            />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-              <Sparkles className="h-10 w-10 text-muted-foreground/30" />
-              <p className="mt-3 text-sm">{t("skills.selectSkillToViewDetails", "Select a skill to view details")}</p>
-              <Button
-                onClick={() => setShowCreate(true)}
-                size="xs"
-                className="mt-3"
-              >
-                <Plus className="h-3 w-3" />
-                {t("skills.createSkill", "Create Skill")}
-              </Button>
-            </div>
-          )}
-        </div>
-      </ResizablePanel>
-
+      {/* Create Dialog */}
       {showCreate && (
         <CreateSkillDialog
           onClose={() => setShowCreate(false)}
@@ -812,6 +962,6 @@ export default function SkillsPage() {
           onImport={handleImport}
         />
       )}
-    </ResizablePanelGroup>
+    </div>
   );
 }
