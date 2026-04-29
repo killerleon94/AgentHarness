@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Check, ChevronRight, Link2, ListTodo, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
+import { Check, ChevronRight, FolderKanban, Link2, ListTodo, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@multica/ui/lib/utils";
 import { toast } from "sonner";
@@ -431,7 +431,7 @@ export function ProjectDetail({ projectId, t: tProp }: { projectId: string; t?: 
                         className="text-2xl cursor-pointer rounded-lg p-1 -ml-1 hover:bg-accent/60 transition-colors"
                         title="Change icon"
                       >
-                        {project.icon || "📁"}
+                        {project.icon || <FolderKanban className="size-6 text-primary/60" />}
                       </button>
                     }
                   />
@@ -526,7 +526,7 @@ export function ProjectDetail({ projectId, t: tProp }: { projectId: string; t?: 
                                 <span>{getActorName(project.lead_type, project.lead_id)}</span>
                               </>
                             ) : (
-                              <span className="text-muted-foreground">No lead</span>
+                              <span className="text-muted-foreground">{t('projects.detail.noLead', 'No lead')}</span>
                             )}
                           </button>
                         }

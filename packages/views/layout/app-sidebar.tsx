@@ -202,7 +202,7 @@ function SortablePinItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group/pin relative rounded-md transition-all duration-200",
+        "group/pin relative mx-0 my-0.5 transition-all duration-200",
         isDragging && "opacity-40 scale-95 bg-sidebar-accent"
       )}
       {...attributes}
@@ -212,7 +212,7 @@ function SortablePinItem({
         isActive={isActive}
         onClick={() => push(href)}
         className={cn(
-          "cursor-pointer w-full h-9 px-2 rounded-md",
+          "cursor-pointer w-full h-9 px-2 rounded-md pr-1",
           "transition-all duration-200 ease-out",
           "hover:bg-sidebar-accent text-sidebar-foreground/80 text-[12px]",
           isActive
@@ -226,18 +226,27 @@ function SortablePinItem({
           <FolderKanban className="size-3 shrink-0 text-info" />
         )}
         <span className="truncate flex-1">{label}</span>
-        <button
-          className="ml-auto cursor-pointer opacity-0 group-hover/pin:opacity-100 transition-all duration-150 hover:bg-destructive/20 hover:text-destructive p-1 rounded"
-          onClick={(e) => {
+      </SidebarMenuButton>
+      <span
+        role="button"
+        tabIndex={0}
+        className="absolute right-1 top-1/2 -translate-y-1/2 cursor-pointer opacity-0 group-hover/pin:opacity-100 transition-all duration-150 hover:bg-destructive/20 hover:text-destructive p-1 rounded"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onUnpin();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             e.stopPropagation();
             onUnpin();
-          }}
-          aria-label={t("sidebar.unpin", "Unpin")}
-        >
-          <PinOff className="size-2.5" />
-        </button>
-      </SidebarMenuButton>
+          }
+        }}
+        aria-label={t("sidebar.unpin", "Unpin")}
+      >
+        <PinOff className="size-2.5" />
+      </span>
     </SidebarMenuItem>
   );
 }

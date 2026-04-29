@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useNavigation } from "../navigation";
+import { useTranslation } from "@multica/core";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { Input } from "@multica/ui/components/ui/input";
@@ -19,6 +20,7 @@ import { useWorkspaceStore } from "@multica/core/workspace";
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const router = useNavigation();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -26,7 +28,7 @@ export function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
 
   const slugError =
     slug.length > 0 && !SLUG_REGEX.test(slug)
-      ? "Only lowercase letters, numbers, and hyphens"
+      ? t('sidebar.invalidSlug', 'Only lowercase letters, numbers, and hyphens')
       : null;
 
   const canSubmit = name.trim().length > 0 && slug.trim().length > 0 && !slugError;
@@ -55,7 +57,7 @@ export function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
       router.push("/issues");
       await switchWorkspace(ws.id);
     } catch {
-      toast.error("Failed to create workspace");
+      toast.error(t('errors.createWorkspaceFailed', 'Failed to create workspace'));
     } finally {
       setCreating(false);
     }
@@ -74,43 +76,42 @@ export function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
           onClick={onClose}
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          {t('sidebar.back', 'Back')}
         </Button>
 
         <div className="flex w-full max-w-md flex-col items-center gap-6">
           <div className="text-center">
             <DialogTitle className="text-2xl font-semibold">
-              Create a new workspace
+              {t('sidebar.createWorkspaceTitle', 'Create a new workspace')}
             </DialogTitle>
             <DialogDescription className="mt-2">
-              Workspaces are shared environments where teams can work on
-              projects and issues.
+              {t('sidebar.createWorkspaceDescription', 'Workspaces are shared environments where teams can work on projects and issues.')}
             </DialogDescription>
           </div>
 
           <Card className="w-full">
             <CardContent className="space-y-4 pt-6">
               <div className="space-y-1.5">
-                <Label>Workspace Name</Label>
+                <Label>{t('sidebar.workspaceName', 'Workspace Name')}</Label>
                 <Input
                   autoFocus
                   type="text"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="My Workspace"
+                  placeholder={t('sidebar.workspaceNamePlaceholder', 'My Workspace')}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Workspace URL</Label>
+                <Label>{t('sidebar.workspaceUrl', 'Workspace URL')}</Label>
                 <div className="flex items-center gap-0 rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring">
                   <span className="pl-3 text-sm text-muted-foreground select-none">
-                    multica.app/
+                    {t('sidebar.workspaceUrlPrefix', 'harness.app/')}
                   </span>
                   <Input
                     type="text"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
-                    placeholder="my-workspace"
+                    placeholder={t('sidebar.workspaceUrlPlaceholder', 'my-workspace')}
                     className="border-0 shadow-none focus-visible:ring-0"
                   />
                 </div>
@@ -127,7 +128,7 @@ export function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
             onClick={handleCreate}
             disabled={creating || !canSubmit}
           >
-            {creating ? "Creating..." : "Create workspace"}
+            {creating ? t('sidebar.creating', 'Creating...') : t('sidebar.createWorkspaceButton', 'Create workspace')}
           </Button>
         </div>
       </DialogContent>
