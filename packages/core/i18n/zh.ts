@@ -382,6 +382,7 @@ export const zh = {
     failedToSaveSkill: "保存技能失败",
     skillDeleted: "技能已删除",
     failedToDeleteSkill: "删除技能失败",
+    searchPlaceholder: "搜索技能...",
   },
   search: {
     trigger: "搜索...",

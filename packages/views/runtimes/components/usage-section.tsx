@@ -54,9 +54,11 @@ export function UsageSection({ runtimeId }: { runtimeId: string }) {
 
   if (usage.length === 0) {
     return (
-      <div className="flex flex-col items-center rounded-lg border border-dashed py-6">
-        <BarChart3 className="h-5 w-5 text-muted-foreground/40" />
-        <p className="mt-2 text-xs text-muted-foreground">{t("runtimes.usage.noData", "No usage data yet")}</p>
+      <div className="flex flex-col items-center rounded-xl border border-dashed py-10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
+          <BarChart3 className="h-5 w-5 text-muted-foreground/50" />
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">{t("runtimes.usage.noData", "No usage data yet")}</p>
       </div>
     );
   }
@@ -99,9 +101,9 @@ export function UsageSection({ runtimeId }: { runtimeId: string }) {
           <button
             key={range.days}
             onClick={() => setDays(range.days)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
               days === range.days
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             }`}
           >
@@ -110,7 +112,7 @@ export function UsageSection({ runtimeId }: { runtimeId: string }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <TokenCard label={t("runtimes.usage.input", "Input")} value={formatTokens(totals.input)} />
         <TokenCard label={t("runtimes.usage.output", "Output")} value={formatTokens(totals.output)} />
         <TokenCard label={t("runtimes.usage.cacheRead", "Cache Read")} value={formatTokens(totals.cacheRead)} />

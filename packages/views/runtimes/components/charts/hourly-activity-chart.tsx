@@ -47,8 +47,8 @@ export function HourlyActivityChart({ runtimeId }: { runtimeId: string }) {
   const hasData = chartData.some((d) => d.count > 0);
 
   return (
-    <div className="rounded-lg border p-4">
-      <h4 className="text-xs font-medium text-muted-foreground mb-3">{t("runtimes.usage.charts.hourlyDistribution", "Hourly Distribution")}</h4>
+    <div className="rounded-xl border bg-card p-4">
+      <h4 className="text-xs font-medium text-muted-foreground mb-4 tracking-wide uppercase">Hourly Distribution</h4>
       {loading ? (
         <div className="flex h-[140px] items-center justify-center text-xs text-muted-foreground">
           {t("runtimes.usage.charts.loading", "Loading...")}

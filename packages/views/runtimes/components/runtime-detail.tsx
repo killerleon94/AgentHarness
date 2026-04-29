@@ -80,24 +80,23 @@ export function RuntimeDetail({ runtime }: { runtime: AgentRuntime }) {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+    <div className="flex h-full flex-col bg-background/50">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b bg-background/80 px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/50">
             <ProviderLogo provider={runtime.provider} className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold truncate">{runtime.name}</h2>
+            <h2 className="text-sm font-semibold truncate tracking-tight">{runtime.name}</h2>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <StatusBadge status={runtime.status} />
           {canDelete && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive cursor-pointer"
               onClick={() => setDeleteOpen(true)}
             >
               <Trash2 className="h-4 w-4" />
@@ -106,42 +105,41 @@ export function RuntimeDetail({ runtime }: { runtime: AgentRuntime }) {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Info grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <InfoField label={t("runtimes.labels.runtimeMode", "Runtime Mode")} value={runtime.runtime_mode} />
-          <InfoField label={t("runtimes.labels.provider", "Provider")} value={runtime.provider} />
-          <InfoField label={t("runtimes.labels.status", "Status")} value={runtime.status} />
-          <InfoField
-            label={t("runtimes.labels.lastSeen", "Last Seen")}
-            value={formatLastSeen(runtime.last_seen_at)}
-          />
-          {ownerMember && (
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">{t("runtimes.labels.owner", "Owner")}</div>
-              <div className="flex items-center gap-2">
-                <ActorAvatar
-                  actorType="member"
-                  actorId={ownerMember.user_id}
-                  size={20}
-                />
-                <span className="text-sm">{ownerMember.name}</span>
+      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="rounded-xl border bg-card">
+          <div className="grid grid-cols-2 gap-4 p-4">
+            <InfoField label={t("runtimes.labels.runtimeMode", "Runtime Mode")} value={runtime.runtime_mode} />
+            <InfoField label={t("runtimes.labels.provider", "Provider")} value={runtime.provider} />
+            <InfoField label={t("runtimes.labels.status", "Status")} value={runtime.status} />
+            <InfoField
+              label={t("runtimes.labels.lastSeen", "Last Seen")}
+              value={formatLastSeen(runtime.last_seen_at)}
+            />
+            {ownerMember && (
+              <div className="col-span-2">
+                <div className="text-xs text-muted-foreground mb-1.5">{t("runtimes.labels.owner", "Owner")}</div>
+                <div className="flex items-center gap-2.5">
+                  <ActorAvatar
+                    actorType="member"
+                    actorId={ownerMember.user_id}
+                    size={20}
+                  />
+                  <span className="text-sm font-medium">{ownerMember.name}</span>
+                </div>
               </div>
-            </div>
-          )}
-          {runtime.device_info && (
-            <InfoField label={t("runtimes.labels.device", "Device")} value={runtime.device_info} />
-          )}
-          {runtime.daemon_id && (
-            <InfoField label={t("runtimes.labels.daemonId", "Daemon ID")} value={runtime.daemon_id} mono />
-          )}
+            )}
+            {runtime.device_info && (
+              <InfoField label={t("runtimes.labels.device", "Device")} value={runtime.device_info} />
+            )}
+            {runtime.daemon_id && (
+              <InfoField label={t("runtimes.labels.daemonId", "Daemon ID")} value={runtime.daemon_id} mono />
+            )}
+          </div>
         </div>
 
-        {/* CLI Version & Update */}
         {runtime.runtime_mode === "local" && (
-          <div>
-            <h3 className="text-xs font-medium text-muted-foreground mb-3">
+          <div className="rounded-xl border bg-card p-4">
+            <h3 className="text-xs font-medium text-muted-foreground mb-3 tracking-wide uppercase">
               {t("runtimes.labels.cliVersion", "CLI Version")}
             </h3>
             <UpdateSection
@@ -152,46 +150,44 @@ export function RuntimeDetail({ runtime }: { runtime: AgentRuntime }) {
           </div>
         )}
 
-        {/* Connection Test */}
-        <div>
-          <h3 className="text-xs font-medium text-muted-foreground mb-3">
+        <div className="rounded-xl border bg-card p-4">
+          <h3 className="text-xs font-medium text-muted-foreground mb-3 tracking-wide uppercase">
             {t("runtimes.labels.connectionTest", "Connection Test")}
           </h3>
           <PingSection runtimeId={runtime.id} />
         </div>
 
-        {/* Usage */}
-        <div>
-          <h3 className="text-xs font-medium text-muted-foreground mb-3">
+        <div className="rounded-xl border bg-card p-4">
+          <h3 className="text-xs font-medium text-muted-foreground mb-3 tracking-wide uppercase">
             {t("runtimes.labels.tokenUsage", "Token Usage")}
           </h3>
           <UsageSection runtimeId={runtime.id} />
         </div>
 
-        {/* Metadata */}
         {runtime.metadata && Object.keys(runtime.metadata).length > 0 && (
-          <div>
-            <h3 className="text-xs font-medium text-muted-foreground mb-2">
+          <div className="rounded-xl border bg-card p-4">
+            <h3 className="text-xs font-medium text-muted-foreground mb-2 tracking-wide uppercase">
               {t("runtimes.labels.metadata", "Metadata")}
             </h3>
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <pre className="text-xs font-mono whitespace-pre-wrap break-all">
+            <div className="rounded-lg bg-muted/30 p-3">
+              <pre className="text-xs font-mono whitespace-pre-wrap break-all leading-relaxed">
                 {JSON.stringify(runtime.metadata, null, 2)}
               </pre>
             </div>
           </div>
         )}
 
-        {/* Timestamps */}
-        <div className="grid grid-cols-2 gap-4 border-t pt-4">
-          <InfoField
-            label={t("runtimes.labels.created", "Created")}
-            value={new Date(runtime.created_at).toLocaleString()}
-          />
-          <InfoField
-            label={t("runtimes.labels.updated", "Updated")}
-            value={new Date(runtime.updated_at).toLocaleString()}
-          />
+        <div className="rounded-xl border bg-card p-4">
+          <div className="grid grid-cols-2 gap-4">
+            <InfoField
+              label={t("runtimes.labels.created", "Created")}
+              value={new Date(runtime.created_at).toLocaleString()}
+            />
+            <InfoField
+              label={t("runtimes.labels.updated", "Updated")}
+              value={new Date(runtime.updated_at).toLocaleString()}
+            />
+          </div>
         </div>
       </div>
 

@@ -35,15 +35,18 @@ function RuntimeListItem({
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${isSelected ? "bg-accent" : "hover:bg-accent/50"
-        }`}
+      className={`group flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all duration-150 cursor-pointer ${
+        isSelected
+          ? "bg-accent border-l-2 border-l-primary"
+          : "hover:bg-accent/60 border-l-2 border-l-transparent"
+      }`}
     >
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/50">
         <ProviderLogo provider={runtime.provider} className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{runtime.name}</div>
-        <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+        <div className="truncate text-sm font-medium text-foreground">{runtime.name}</div>
+        <div className="mt-1 flex items-center gap-1.5">
           {ownerMember ? (
             <>
               <ActorAvatar
@@ -51,22 +54,23 @@ function RuntimeListItem({
                 actorId={ownerMember.user_id}
                 size={14}
               />
-              <span className="truncate">{ownerMember.name}</span>
+              <span className="truncate text-xs text-muted-foreground">{ownerMember.name}</span>
             </>
           ) : (
-            <span className="truncate">{runtime.runtime_mode}</span>
+            <span className="truncate text-xs text-muted-foreground">{runtime.runtime_mode}</span>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         {hasUpdate && (
           <span title={t("runtimes.updateAvailable", "Update available")}>
-            <ArrowUpCircle className="h-3.5 w-3.5 text-info" />
+            <ArrowUpCircle className="h-4 w-4 text-info" />
           </span>
         )}
         <div
-          className={`h-2 w-2 rounded-full ${runtime.status === "online" ? "bg-success" : "bg-muted-foreground/40"
-            }`}
+          className={`h-2 w-2 rounded-full transition-colors ${
+            runtime.status === "online" ? "bg-success shadow-sm shadow-success/50" : "bg-muted-foreground/30"
+          }`}
         />
       </div>
     </button>
@@ -286,46 +290,45 @@ export function RuntimeList({
   const selectedOwner = ownerFilter ? getOwnerMember(ownerFilter) : null;
 
   return (
-    <div className="overflow-y-auto h-full border-r">
-      <div className="flex h-12 items-center justify-between border-b px-4">
-        <h1 className="text-sm font-semibold">{t("runtimes.title", "Runtimes")}</h1>
-        <span className="text-xs text-muted-foreground">
+    <div className="overflow-y-auto h-full border-r bg-background/50">
+      <div className="flex h-12 items-center justify-between border-b px-4 bg-background/80">
+        <h1 className="text-sm font-semibold tracking-tight">{t("runtimes.title", "Runtimes")}</h1>
+        <span className="text-xs text-muted-foreground font-medium">
           {filteredRuntimes.filter((r) => r.status === "online").length}/
           {filteredRuntimes.length} {t("runtimes.online", "online")}
         </span>
       </div>
 
-      {/* Filter bar */}
-      <div className="flex items-center justify-between border-b px-4 py-2">
+      <div className="flex items-center justify-between border-b px-4 py-2.5 bg-muted/20">
         <div className="flex items-center gap-2">
-          {/* Scope toggle */}
-          <div className="flex items-center gap-0.5 rounded-md bg-muted p-0.5">
+          <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
             <button
               onClick={() => { onFilterChange("mine"); onOwnerFilterChange(null); }}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${filter === "mine"
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
+                filter === "mine"
                   ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                }`}
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+              }`}
             >
               {t("runtimes.filterMine", "Mine")}
             </button>
             <button
               onClick={() => { onFilterChange("all"); onOwnerFilterChange(null); }}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${filter === "all"
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
+                filter === "all"
                   ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                }`}
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+              }`}
             >
               {t("runtimes.filterAll", "All")}
             </button>
           </div>
 
-          {/* Owner dropdown (only in All mode with multiple owners) */}
           {filter === "all" && uniqueOwners.length > 1 && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <button className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent" />
+                  <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent cursor-pointer" />
                 }
               >
                 {selectedOwner ? (
@@ -336,12 +339,12 @@ export function RuntimeList({
                 ) : (
                   <span>{t("runtimes.ownerPlaceholder", "Owner")}</span>
                 )}
-                <ChevronDown className="h-3 w-3 opacity-50" />
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem
                   onClick={() => onOwnerFilterChange(null)}
-                  className="flex items-center justify-between"
+                  className="flex items-center justify-between cursor-pointer"
                 >
                   <span className="text-xs">{t("runtimes.allOwners", "All owners")}</span>
                   {!ownerFilter && <Check className="h-3.5 w-3.5 text-foreground" />}
@@ -351,12 +354,12 @@ export function RuntimeList({
                   <DropdownMenuItem
                     key={m.user_id}
                     onClick={() => onOwnerFilterChange(ownerFilter === m.user_id ? null : m.user_id)}
-                    className="flex items-center justify-between"
+                    className="flex items-center justify-between cursor-pointer"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <ActorAvatar actorType="member" actorId={m.user_id} size={18} />
                       <span className="text-xs truncate">{m.name}</span>
-                      <span className="text-xs text-muted-foreground">{ownerCounts.get(m.user_id) ?? 0}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{ownerCounts.get(m.user_id) ?? 0}</span>
                     </div>
                     {ownerFilter === m.user_id && <Check className="h-3.5 w-3.5 shrink-0 text-foreground" />}
                   </DropdownMenuItem>
@@ -366,22 +369,21 @@ export function RuntimeList({
           )}
         </div>
 
-        {/* Start/Stop Multica Button */}
         <div className="flex items-center gap-2">
           {daemonStatus === "running" ? (
             <button
               onClick={handleStopMultica}
               disabled={isStoppingMultica}
-              className="flex items-center gap-2 rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground transition-colors hover:bg-destructive/90"
+              className="flex items-center gap-1.5 rounded-md bg-destructive/10 text-destructive px-3 py-1.5 text-xs font-medium transition-colors hover:bg-destructive/20 cursor-pointer"
             >
               {isStoppingMultica ? (
                 <>
-                  <Square className="h-3 w-3 animate-spin" />
+                  <Square className="h-3.5 w-3.5 animate-spin" />
                   <span>{t("runtimes.stopping", "Stopping...")}</span>
                 </>
               ) : (
                 <>
-                  <Square className="h-3 w-3" />
+                  <Square className="h-3.5 w-3.5" />
                   <span>{t("runtimes.stop", "Stop")}</span>
                 </>
               )}
@@ -390,21 +392,21 @@ export function RuntimeList({
             <button
               onClick={handleStartMultica}
               disabled={isStartingMultica || isLoggingIn || daemonStatus === "unknown"}
-              className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              className="flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium transition-colors hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
             >
               {isStartingMultica ? (
                 <>
-                  <Play className="h-3 w-3 animate-spin" />
+                  <Play className="h-3.5 w-3.5 animate-spin" />
                   <span>{t("runtimes.starting", "Starting...")}</span>
                 </>
               ) : isLoggingIn ? (
                 <>
-                  <Play className="h-3 w-3 animate-spin" />
+                  <Play className="h-3.5 w-3.5 animate-spin" />
                   <span>{t("runtimes.loggingIn", "Logging in...")}</span>
                 </>
               ) : (
                 <>
-                  <Play className="h-3 w-3" />
+                  <Play className="h-3.5 w-3.5" />
                   <span>{t("runtimes.start", "Start")}</span>
                 </>
               )}
@@ -414,21 +416,23 @@ export function RuntimeList({
       </div>
 
       {filteredRuntimes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center px-4 py-12">
-          <Server className="h-8 w-8 text-muted-foreground/40" />
-          <p className="mt-3 text-sm text-muted-foreground">
+        <div className="flex flex-col items-center justify-center px-4 py-16">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/50">
+            <Server className="h-7 w-7 text-muted-foreground/50" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-muted-foreground">
             {filter === "mine" 
               ? t("runtimes.noOwned", "No runtimes owned by you") 
               : ownerFilter 
                 ? t("runtimes.noForOwner", "No runtimes for this owner") 
                 : t("runtimes.noRegistered", "No runtimes registered")}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground text-center">
+          <p className="mt-1.5 text-xs text-muted-foreground/70 text-center max-w-[200px]">
             {t("runtimes.emptyHint", "Run harness daemon start to register a local runtime.")}
           </p>
         </div>
       ) : (
-        <div className="divide-y">
+        <div className="divide-y divide-border/50">
           {filteredRuntimes.map((runtime) => (
             <RuntimeListItem
               key={runtime.id}

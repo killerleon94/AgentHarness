@@ -21,8 +21,8 @@ export function DailyCostChart({ data }: { data: DailyCostData[] }) {
   if (data.every((d) => d.cost === 0)) return null;
 
   return (
-    <div className="rounded-lg border p-4">
-      <h4 className="text-xs font-medium text-muted-foreground mb-3">Daily Estimated Cost</h4>
+    <div className="rounded-xl border bg-card p-4">
+      <h4 className="text-xs font-medium text-muted-foreground mb-4 tracking-wide uppercase">Daily Estimated Cost</h4>
       <ChartContainer config={costChartConfig} className="aspect-[2.5/1] w-full">
         <BarChart data={data} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
           <CartesianGrid vertical={false} />

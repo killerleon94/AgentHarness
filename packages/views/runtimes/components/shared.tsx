@@ -16,7 +16,9 @@ export function StatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant="secondary"
-      className={isOnline ? "bg-success/10 text-success" : ""}
+      className={`gap-1.5 px-2.5 py-1 text-xs font-medium ${
+        isOnline ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground"
+      }`}
     >
       {isOnline ? (
         <Wifi className="h-3 w-3" />
@@ -38,10 +40,10 @@ export function InfoField({
   mono?: boolean;
 }) {
   return (
-    <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="space-y-1">
+      <div className="text-xs text-muted-foreground tracking-wide">{label}</div>
       <div
-        className={`mt-0.5 text-sm truncate ${mono ? "font-mono text-xs" : ""}`}
+        className={`text-sm truncate ${mono ? "font-mono text-xs bg-muted/50 px-1.5 py-0.5 rounded" : "font-medium text-foreground"}`}
       >
         {value}
       </div>
@@ -51,9 +53,9 @@ export function InfoField({
 
 export function TokenCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-sm font-semibold tabular-nums">{value}</div>
+    <div className="rounded-lg border bg-card px-3.5 py-2.5">
+      <div className="text-xs text-muted-foreground mb-1">{label}</div>
+      <div className="text-base font-semibold text-foreground tabular-nums tracking-tight">{value}</div>
     </div>
   );
 }

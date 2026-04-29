@@ -382,6 +382,7 @@ export const en = {
     failedToSaveSkill: "Failed to save skill",
     skillDeleted: "Skill deleted",
     failedToDeleteSkill: "Failed to delete skill",
+    searchPlaceholder: "Search skills...",
   },
   search: {
     trigger: "Search...",

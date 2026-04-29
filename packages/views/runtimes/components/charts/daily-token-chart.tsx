@@ -105,8 +105,8 @@ export function DailyTokenChart({ data }: { data: DailyTokenData[] }) {
   const yMax = ticks[ticks.length - 1] ?? 0;
 
   return (
-    <div className="rounded-lg border p-4">
-      <h4 className="text-xs font-medium text-muted-foreground mb-3">
+    <div className="rounded-xl border bg-card p-4">
+      <h4 className="text-xs font-medium text-muted-foreground mb-4 tracking-wide uppercase">
         {t("runtimes.usage.charts.dailyTokenUsage", "Daily Token Usage")}
       </h4>
       <ChartContainer
