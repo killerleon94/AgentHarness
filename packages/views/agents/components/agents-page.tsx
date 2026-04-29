@@ -1,17 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useDefaultLayout } from "react-resizable-panels";
-import { Bot, Plus, Archive } from "lucide-react";
-import type { CreateAgentRequest, UpdateAgentRequest } from "@multica/core/types";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@multica/ui/components/ui/resizable";
+import { Bot, Plus, Archive, Search } from "lucide-react";
+import type { CreateAgentRequest, UpdateAgentRequest, Agent } from "@multica/core/types";
 import { Button } from "@multica/ui/components/ui/button";
 import { toast } from "sonner";
-import { Skeleton } from "@multica/ui/components/ui/skeleton";
+import { Input } from "@multica/ui/components/ui/input";
 import { api } from "@multica/core/api";
 import { useAuthStore } from "@multica/core/auth";
 import { runtimeListOptions } from "@multica/core/runtimes/queries";
@@ -20,8 +14,10 @@ import { useWorkspaceId } from "@multica/core/hooks";
 import { useTranslation } from "@multica/core";
 import { agentListOptions, workspaceKeys } from "@multica/core/workspace/queries";
 import { CreateAgentDialog } from "./create-agent-dialog";
-import { AgentListItem } from "./agent-list-item";
 import { AgentDetail } from "./agent-detail";
+import { statusConfig } from "../config";
+import { ActorAvatar } from "../../common/actor-avatar";
+import { Cloud, Monitor } from "lucide-react";
 
 export function AgentsPage() {
   const { t } = useTranslation();
@@ -32,22 +28,35 @@ export function AgentsPage() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [showArchived, setShowArchived] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: runtimes = [], isLoading: runtimesLoading } = useQuery(runtimeListOptions(wsId));
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "multica_agents_layout",
-  });
 
   const filteredAgents = useMemo(
-    () => showArchived ? agents.filter((a) => !!a.archived_at) : agents.filter((a) => !a.archived_at),
-    [agents, showArchived],
+    () => {
+      let list = showArchived 
+        ? agents.filter((a) => !!a.archived_at) 
+        : agents.filter((a) => !a.archived_at);
+      
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        list = list.filter((a) => 
+          a.name.toLowerCase().includes(q) ||
+          (a.description?.toLowerCase().includes(q))
+        );
+      }
+      return list;
+    },
+    [agents, showArchived, searchQuery],
   );
 
   const archivedCount = useMemo(() => agents.filter((a) => !!a.archived_at).length, [agents]);
 
-  // Select first agent on initial load or when filter changes
   useEffect(() => {
     if (filteredAgents.length > 0 && !filteredAgents.some((a) => a.id === selectedId)) {
       setSelectedId(filteredAgents[0]!.id);
+    }
+    if (!filteredAgents.some((a) => a.id === selectedId)) {
+      setSelectedId("");
     }
   }, [filteredAgents, selectedId]);
 
@@ -93,55 +102,26 @@ export function AgentsPage() {
   if (isLoading) {
     return (
       <div className="flex flex-1 min-h-0">
-        {/* List skeleton */}
-        <div className="w-72 border-r">
-          <div className="flex h-12 items-center justify-between border-b px-4">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-6 w-6 rounded" />
-          </div>
-          <div className="divide-y">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-              </div>
+        <div className="flex-1 grid grid-cols-3 gap-4 p-4">
+          <div className="col-span-1 space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 rounded-xl border bg-muted/50" />
             ))}
           </div>
-        </div>
-        {/* Detail skeleton */}
-        <div className="flex-1 p-6 space-y-6">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <div className="space-y-1.5">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          </div>
-          <div className="space-y-3">
-            <Skeleton className="h-8 w-full rounded-lg" />
-            <Skeleton className="h-8 w-full rounded-lg" />
-            <Skeleton className="h-8 w-3/4 rounded-lg" />
-          </div>
+          <div className="col-span-2 rounded-xl border bg-muted/50" />
         </div>
       </div>
     );
   }
 
   return (
-    <ResizablePanelGroup
-      orientation="horizontal"
-      className="flex-1 min-h-0"
-      defaultLayout={defaultLayout}
-      onLayoutChanged={onLayoutChanged}
-    >
-      <ResizablePanel id="list" defaultSize={280} minSize={240} maxSize={400} groupResizeBehavior="preserve-pixel-size">
-        {/* Left column — agent list */}
-        <div className="overflow-y-auto h-full border-r">
-          <div className="flex h-12 items-center justify-between border-b px-4">
-            <h1 className="text-sm font-semibold">{t("agents.title", "Agents")}</h1>
+    <div className="flex flex-1 min-h-0 overflow-hidden">
+      {/* Left Panel - Agent Cards Grid */}
+      <div className="w-96 border-r flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="shrink-0 border-b p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h1 className="text-base font-semibold">{t("agents.title", "Agents")}</h1>
             <div className="flex items-center gap-1">
               {archivedCount > 0 && (
                 <Button
@@ -162,27 +142,42 @@ export function AgentsPage() {
               </Button>
             </div>
           </div>
+          
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("agents.searchPlaceholder", "Search agents...")}
+              className="pl-9 h-9"
+            />
+          </div>
+        </div>
+
+        {/* Agent Cards */}
+        <div className="flex-1 overflow-y-auto p-4">
           {filteredAgents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center px-4 py-12">
-              <Bot className="h-8 w-8 text-muted-foreground/40" />
+            <div className="flex flex-col items-center justify-center py-12">
+              <Bot className="h-10 w-10 text-muted-foreground/30" />
               <p className="mt-3 text-sm text-muted-foreground">
-                {showArchived ? t("agents.noArchivedAgents", "No archived agents") : archivedCount > 0 ? t("agents.noActiveAgents", "No active agents") : t("agents.noAgents", "No agents yet")}
+                {showArchived 
+                  ? t("agents.noArchivedAgents", "No archived agents") 
+                  : archivedCount > 0 
+                    ? t("agents.noActiveAgents", "No active agents") 
+                    : t("agents.noAgents", "No agents yet")}
               </p>
               {!showArchived && (
-                <Button
-                  onClick={() => setShowCreate(true)}
-                  size="xs"
-                  className="mt-3"
-                >
+                <Button onClick={() => setShowCreate(true)} size="sm" className="mt-3">
                   <Plus className="h-3 w-3" />
                   {t("agents.createAgent", "Create Agent")}
                 </Button>
               )}
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="grid gap-3">
               {filteredAgents.map((agent) => (
-                <AgentListItem
+                <AgentCard
                   key={agent.id}
                   agent={agent}
                   isSelected={agent.id === selectedId}
@@ -192,12 +187,10 @@ export function AgentsPage() {
             </div>
           )}
         </div>
-      </ResizablePanel>
+      </div>
 
-      <ResizableHandle />
-
-      <ResizablePanel id="detail" minSize="50%">
-        {/* Right column — agent detail */}
+      {/* Right Panel - Agent Detail */}
+      <div className="flex-1 overflow-hidden">
         {selected ? (
           <AgentDetail
             key={selected.id}
@@ -209,11 +202,11 @@ export function AgentsPage() {
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-            <Bot className="h-10 w-10 text-muted-foreground/30" />
-            <p className="mt-3 text-sm">{t("agents.selectAgent", "Select an agent to view details")}</p>
+            <Bot className="h-12 w-12 text-muted-foreground/20" />
+            <p className="mt-4 text-sm">{t("agents.selectAgent", "Select an agent to view details")}</p>
             <Button
               onClick={() => setShowCreate(true)}
-              size="xs"
+              size="sm"
               className="mt-3"
             >
               <Plus className="h-3 w-3" />
@@ -221,7 +214,7 @@ export function AgentsPage() {
             </Button>
           </div>
         )}
-      </ResizablePanel>
+      </div>
 
       {showCreate && (
         <CreateAgentDialog
@@ -231,6 +224,104 @@ export function AgentsPage() {
           onCreate={handleCreate}
         />
       )}
-    </ResizablePanelGroup>
+    </div>
+  );
+}
+
+function AgentCard({
+  agent,
+  isSelected,
+  onClick,
+}: {
+  agent: Agent;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const { t } = useTranslation();
+  const st = statusConfig[agent.status];
+  const isArchived = !!agent.archived_at;
+
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative w-full text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer ${
+        isSelected 
+          ? "border-primary bg-primary/5 shadow-sm" 
+          : "border-border hover:border-primary/30 hover:bg-muted/50"
+      } ${isArchived ? "opacity-60" : ""}`}
+    >
+      {/* Status Indicator */}
+      {!isArchived && (
+        <div className={`absolute top-3 right-3 h-2 w-2 rounded-full ${st.dot}`} />
+      )}
+      
+      {/* Content */}
+      <div className="flex items-start gap-3">
+        <ActorAvatar 
+          actorType="agent" 
+          actorId={agent.id} 
+          size={40} 
+          className={`rounded-lg ${isArchived ? "grayscale" : ""}`} 
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className={`text-sm font-semibold truncate ${isArchived ? "text-muted-foreground" : ""}`}>
+              {agent.name}
+            </span>
+            {agent.runtime_mode === "cloud" ? (
+              <Cloud className="h-3 w-3 shrink-0 text-muted-foreground" />
+            ) : (
+              <Monitor className="h-3 w-3 shrink-0 text-muted-foreground" />
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 mt-1">
+            {isArchived ? (
+              <span className="text-xs text-muted-foreground">{t("common.archive", "Archived")}</span>
+            ) : (
+              <>
+                <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
+                <span className={`text-xs ${st.color}`}>{t(st.labelKey, st.defaultLabel)}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Description */}
+      {agent.description && (
+        <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{agent.description}</p>
+      )}
+
+      {/* Skills Preview */}
+      {agent.skills.length > 0 && (
+        <div className="mt-3 flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">{agent.skills.length}</span>
+          <span className="text-xs text-muted-foreground">{t("agents.skillsCount", "skills")}</span>
+          <div className="flex -space-x-1 ml-1">
+            {agent.skills.slice(0, 3).map((skill) => (
+              <div 
+                key={skill.id} 
+                className="h-5 w-5 rounded-full bg-muted border-2 border-background flex items-center justify-center"
+                title={skill.name}
+              >
+                <span className="text-[8px] font-medium text-muted-foreground">
+                  {skill.name.charAt(0)}
+                </span>
+              </div>
+            ))}
+            {agent.skills.length > 3 && (
+              <div className="h-5 w-5 rounded-full bg-muted border-2 border-background flex items-center justify-center">
+                <span className="text-[8px] font-medium text-muted-foreground">+{agent.skills.length - 3}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Selection Indicator */}
+      {isSelected && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-b-xl opacity-0" />
+      )}
+    </button>
   );
 }
