@@ -855,4 +855,24 @@ export class ApiClient {
     }
     return response.json();
   }
+
+  async getIssueWorkdirFiles(issueId: string): Promise<{
+    tasks: {
+      task_id: string;
+      task_status: string;
+      work_dir: string;
+      files: { name: string; is_dir: boolean; size: number; path: string }[];
+    }[];
+  }> {
+    const url = `${this.baseUrl}/api/issues/${issueId}/workdir-files`;
+    const response = await fetch(url, {
+      headers: this.authHeaders(),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const message = await this.parseErrorMessage(response, "Failed to get workdir files");
+      throw new Error(message);
+    }
+    return response.json();
+  }
 }

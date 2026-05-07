@@ -585,15 +585,6 @@ export function HarnessLanding() {
                   {user ? t.nav.openWorkspace : t.hero.primaryCta}
                   <ArrowRight className="size-5" />
                 </Link>
-                <Link
-                  href={githubUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-8 py-4 text-base font-semibold transition-colors hover:bg-accent cursor-pointer"
-                >
-                  <GitHubMark className="size-5" />
-                  {t.hero.secondaryCta}
-                </Link>
               </div>
 
               <div className="mt-16">
@@ -789,9 +780,6 @@ export function HarnessLanding() {
             <span className="text-base font-semibold">Agent Harness</span>
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <a href={githubUrl} target="_blank" rel="noreferrer" className="transition-colors hover:text-foreground cursor-pointer">
-              {t.nav.github}
-            </a>
             <a href="#features" className="transition-colors hover:text-foreground cursor-pointer">
               {t.nav.features}
             </a>

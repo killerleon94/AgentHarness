@@ -847,6 +847,143 @@ func (h *Handler) GetIssueUsage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetIssueWorkdirFiles returns all workdir files from cancelled tasks of an issue.
+func (h *Handler) GetIssueWorkdirFiles(w http.ResponseWriter, r *http.Request) {
+	issueID := chi.URLParam(r, "id")
+	if issueID == "" {
+		writeError(w, http.StatusBadRequest, "issue_id is required")
+		return
+	}
+
+	// Get issue to obtain workspace_id
+	issue, err := h.Queries.GetIssue(r.Context(), parseUUID(issueID))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "issue not found")
+		return
+	}
+	workspaceID := issue.WorkspaceID.String()
+
+	if !h.requireDaemonWorkspaceAccess(w, r, workspaceID) {
+		return
+	}
+
+	// Get all tasks for the issue
+	tasks, err := h.Queries.ListTasksByIssue(r.Context(), parseUUID(issueID))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list tasks")
+		return
+	}
+
+	// Filter tasks with a work_dir that have finished (completed, failed, or cancelled)
+	var finishedTasks []db.AgentTaskQueue
+	for _, t := range tasks {
+		if !t.WorkDir.Valid || t.WorkDir.String == "" {
+			continue
+		}
+		if t.Status == "completed" || t.Status == "failed" || t.Status == "cancelled" {
+			finishedTasks = append(finishedTasks, t)
+		}
+	}
+
+	if len(finishedTasks) == 0 {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"tasks": []map[string]any{},
+		})
+		return
+	}
+
+	// Get daemon runtime for health port
+	runtime, err := h.Queries.GetDaemonRuntimeByWorkspace(r.Context(), parseUUID(workspaceID))
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "daemon not registered for workspace")
+		return
+	}
+
+	daemonPort := int(runtime.HealthPort)
+	if daemonPort == 0 {
+		daemonPort = 19514
+	}
+
+	type FileEntry struct {
+		Name  string `json:"name"`
+		IsDir bool   `json:"is_dir"`
+		Size  int64  `json:"size"`
+		Path  string `json:"path"`
+	}
+
+	type TaskFiles struct {
+		TaskID     string      `json:"task_id"`
+		TaskStatus string      `json:"task_status"`
+		WorkDir    string      `json:"work_dir"`
+		Files      []FileEntry `json:"files"`
+	}
+
+	// Build task directories
+	taskFiles := make([]TaskFiles, 0, len(finishedTasks))
+	for _, task := range finishedTasks {
+		workDir := task.WorkDir
+		if !workDir.Valid || workDir.String == "" {
+			continue
+		}
+
+		// Derive the relative path under workspace root from the absolute work_dir.
+		// Layout on disk: {WorkspacesRoot}/{workspaceID}/{taskShortID}/workdir
+		// The daemon file server resolves: workspaceRoot + path = absPath
+		// So we need the portion after {workspaceID}/.
+		idx := strings.Index(workDir.String, "/"+workspaceID+"/")
+		if idx < 0 {
+			slog.Warn("work_dir does not contain workspace_id", "work_dir", workDir.String, "workspace_id", workspaceID)
+			continue
+		}
+		workdirPath := workDir.String[idx+len(workspaceID)+2:]
+		if workdirPath == "" {
+			continue
+		}
+
+		// Fetch files from daemon
+		reqURL := fmt.Sprintf("http://127.0.0.1:%d/files/%s?path=%s&ls=1", daemonPort, workspaceID, url.QueryEscape(workdirPath))
+
+		req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, reqURL, nil)
+		if err != nil {
+			continue
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			slog.Warn("daemon file listing request failed", "task_id", task.ID, "path", workdirPath, "error", err)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			slog.Warn("daemon file listing returned non-200", "task_id", task.ID, "path", workdirPath, "status", resp.StatusCode)
+			resp.Body.Close()
+			continue
+		}
+
+		var files []FileEntry
+		if err := json.NewDecoder(resp.Body).Decode(&files); err != nil {
+			resp.Body.Close()
+			continue
+		}
+		resp.Body.Close()
+
+		// Build full paths for each file
+		for i := range files {
+			files[i].Path = workdirPath + "/" + files[i].Name
+		}
+
+		taskFiles = append(taskFiles, TaskFiles{
+			TaskID:     task.ID.String(),
+			TaskStatus: task.Status,
+			WorkDir:    workDir.String,
+			Files:      files,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"tasks": taskFiles,
+	})
+}
+
 // DownloadWorkspaceFile proxies a file download request to the local daemon.
 // GET /api/workspaces/{workspace_id}/download?path=...
 func (h *Handler) DownloadWorkspaceFile(w http.ResponseWriter, r *http.Request) {
