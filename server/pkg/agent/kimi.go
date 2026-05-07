@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -108,6 +111,17 @@ func (b *kimiBackend) Execute(ctx context.Context, prompt string, opts ExecOptio
 		exitErr := cmd.Wait()
 		duration := time.Since(startTime)
 
+		// Extract token usage from kimi's session wire.jsonl.
+		// The stream-json stdout does not include usage data; it is only
+		// written to ~/.kimi/sessions/{md5(cwd)}/{sessionID}/wire.jsonl
+		// as StatusUpdate events with token_usage fields.
+		// Must read after cmd.Wait() to ensure all data is flushed.
+		if scanResult.sessionID != "" && opts.Cwd != "" {
+			if wireUsage := extractKimiWireUsage(opts.Cwd, scanResult.sessionID); wireUsage != nil {
+				scanResult.usage = *wireUsage
+			}
+		}
+
 		if runCtx.Err() == context.DeadlineExceeded {
 			scanResult.status = "timeout"
 			scanResult.errMsg = fmt.Sprintf("kimi timed out after %s", timeout)
@@ -126,7 +140,7 @@ func (b *kimiBackend) Execute(ctx context.Context, prompt string, opts ExecOptio
 		if u.InputTokens > 0 || u.OutputTokens > 0 {
 			model := opts.Model
 			if model == "" {
-				model = "unknown"
+				model = "kimi-for-coding"
 			}
 			usage = map[string]TokenUsage{model: u}
 		}
@@ -496,4 +510,75 @@ func parseSessionFromTrailer(data []byte) string {
 		return string(matches[1])
 	}
 	return ""
+}
+
+// extractKimiWireUsage reads the wire.jsonl from the kimi session directory
+// and extracts cumulative token usage from StatusUpdate events.
+//
+// Kimi stores session data at: ~/.kimi/sessions/{md5(cwd)}/{sessionID}/wire.jsonl
+// Each StatusUpdate event contains a token_usage field with:
+//   - input_other:         non-cached input tokens
+//   - output:              output tokens
+//   - input_cache_read:    tokens read from prompt cache
+//   - input_cache_creation: tokens written to prompt cache
+func extractKimiWireUsage(cwd, sessionID string) *TokenUsage {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(cwd)))
+	wirePath := filepath.Join(homeDir, ".kimi", "sessions", hash, sessionID, "wire.jsonl")
+
+	f, err := os.Open(wirePath)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	var total TokenUsage
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
+	for scanner.Scan() {
+		var entry kimiWireEntry
+		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
+			continue
+		}
+		if entry.Message.Type != "StatusUpdate" {
+			continue
+		}
+		tu := entry.Message.Payload.TokenUsage
+		if tu == nil {
+			continue
+		}
+		total.InputTokens += tu.InputOther + tu.InputCacheRead + tu.InputCacheCreation
+		total.OutputTokens += tu.Output
+		total.CacheReadTokens += tu.InputCacheRead
+		total.CacheWriteTokens += tu.InputCacheCreation
+	}
+
+	if total.InputTokens == 0 && total.OutputTokens == 0 {
+		return nil
+	}
+	return &total
+}
+
+// kimiWireEntry represents a single line in wire.jsonl.
+type kimiWireEntry struct {
+	Message kimiWireMessage `json:"message"`
+}
+
+type kimiWireMessage struct {
+	Type    string          `json:"type"`
+	Payload kimiWirePayload `json:"payload"`
+}
+
+type kimiWirePayload struct {
+	TokenUsage *kimiWireTokenUsage `json:"token_usage,omitempty"`
+}
+
+type kimiWireTokenUsage struct {
+	InputOther         int64 `json:"input_other"`
+	Output             int64 `json:"output"`
+	InputCacheRead     int64 `json:"input_cache_read"`
+	InputCacheCreation int64 `json:"input_cache_creation"`
 }

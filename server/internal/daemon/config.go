@@ -127,8 +127,15 @@ func LoadConfig(overrides Overrides) (Config, error) {
 			Model: strings.TrimSpace(os.Getenv("MULTICA_CLAW_MODEL")),
 		}
 	}
+	codebuddyPath := envOrDefault("MULTICA_CODEBUDDY_PATH", "codebuddy")
+	if _, err := exec.LookPath(codebuddyPath); err == nil {
+		agents["codebuddy"] = AgentEntry{
+			Path:  codebuddyPath,
+			Model: strings.TrimSpace(os.Getenv("MULTICA_CODEBUDDY_MODEL")),
+		}
+	}
 	if len(agents) == 0 {
-		return Config{}, fmt.Errorf("no agent CLI found: install claude, codex, opencode, openclaw, hermes, kimi, trae, or claw and ensure it is on PATH")
+		return Config{}, fmt.Errorf("no agent CLI found: install claude, codex, opencode, openclaw, hermes, kimi, trae, claw, or codebuddy and ensure it is on PATH")
 	}
 
 	// Host info

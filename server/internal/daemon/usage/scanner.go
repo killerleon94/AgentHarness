@@ -25,7 +25,7 @@ func NewScanner(logger *slog.Logger) *Scanner {
 	return &Scanner{logger: logger}
 }
 
-// Scan reads local JSONL log files for both Claude Code and Codex CLI,
+// Scan reads local JSONL log files for Claude Code, Codex CLI, and Kimi CLI,
 // and returns aggregated usage records keyed by (date, provider, model).
 func (s *Scanner) Scan() []Record {
 	var records []Record
@@ -35,6 +35,9 @@ func (s *Scanner) Scan() []Record {
 
 	codexRecords := s.scanCodex()
 	records = append(records, codexRecords...)
+
+	kimiRecords := s.scanKimi()
+	records = append(records, kimiRecords...)
 
 	return records
 }
