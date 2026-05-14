@@ -202,10 +202,17 @@ export class ApiClient {
     });
   }
 
-  async loginWithPassword(email: string, password: string): Promise<LoginResponse> {
+  async loginWithPassword(email: string, password: string, captchaId?: string, captchaAnswer?: string): Promise<LoginResponse> {
     return this.fetch("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, captcha_id: captchaId, captcha_answer: captchaAnswer }),
+    });
+  }
+
+  async _sendCode(email: string, captchaId?: string, captchaAnswer?: string): Promise<void> {
+    await this.fetch("/auth/send-code", {
+      method: "POST",
+      body: JSON.stringify({ email, captcha_id: captchaId, captcha_answer: captchaAnswer }),
     });
   }
 
@@ -234,6 +241,17 @@ export class ApiClient {
     await this.fetch("/auth/set-password", {
       method: "POST",
       body: JSON.stringify({ password }),
+    });
+  }
+
+  async newCaptcha(): Promise<{ id: string; image_data: string }> {
+    return this.fetch("/auth/captcha/new", { method: "POST" });
+  }
+
+  async verifyCaptcha(id: string, answer: string): Promise<{ valid: boolean }> {
+    return this.fetch("/auth/captcha/verify", {
+      method: "POST",
+      body: JSON.stringify({ id, answer }),
     });
   }
 

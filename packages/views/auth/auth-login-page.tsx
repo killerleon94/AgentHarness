@@ -24,6 +24,7 @@ import { useI18nStore, useTranslation } from "@multica/core";
 import { api } from "@multica/core/api";
 import type { User } from "@multica/core/types";
 import { Loader2, Mail, Lock, Globe, Moon, Sun, Monitor } from "lucide-react";
+import { useCaptcha } from "./captcha-input";
 
 interface GoogleAuthConfig {
   clientId: string;
@@ -65,6 +66,7 @@ export function LoginPageV2({
   const [existingUser, setExistingUser] = useState<User | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
+  const captcha = useCaptcha();
 
   const { hydrateWorkspace } = useWorkspaceStore();
   const { language: currentLang, setLanguage } = useI18nStore();
@@ -83,6 +85,7 @@ export function LoginPageV2({
     setName("");
     setCode("");
     setCodeSent(false);
+    captcha.setCaptchaAnswer("");
   }, [mode]);
 
   useEffect(() => {
@@ -116,9 +119,14 @@ export function LoginPageV2({
         return;
       }
 
+      if (!captcha.captchaId) {
+        setError(t("captcha.required", "请先完成图形验证码"));
+        return;
+      }
+
       setLoading(true);
       try {
-        const { token, user } = await api.loginWithPassword(email, password);
+        const { token, user } = await api.loginWithPassword(email, password, captcha.captchaId, captcha.captchaAnswer);
         localStorage.setItem("multica_token", token);
         api.setToken(token);
         onTokenObtained?.();
@@ -133,11 +141,12 @@ export function LoginPageV2({
             ? err.message
             : t("auth.errors.invalidCredentials")
         );
+        captcha.refresh();
       } finally {
         setLoading(false);
       }
     },
-    [email, password, lastWorkspaceId, onSuccess, onTokenObtained, t, hydrateWorkspace]
+    [email, password, lastWorkspaceId, onSuccess, onTokenObtained, t, hydrateWorkspace, captcha]
   );
 
   const handleRegister = useCallback(
@@ -200,7 +209,7 @@ export function LoginPageV2({
       setLoading(true);
       setError("");
       try {
-        await useAuthStore.getState().sendCode(email);
+        await api._sendCode(email, captcha.captchaId, captcha.captchaAnswer);
         setCodeSent(true);
         setCooldown(10);
       } catch (err) {
@@ -213,7 +222,7 @@ export function LoginPageV2({
         setLoading(false);
       }
     },
-    [email, t]
+    [email, t, captcha]
   );
 
   const handleVerify = useCallback(
@@ -251,7 +260,7 @@ export function LoginPageV2({
     if (cooldown > 0) return;
     setError("");
     try {
-      await useAuthStore.getState().sendCode(email);
+      await api._sendCode(email, captcha.captchaId, captcha.captchaAnswer);
       setCooldown(10);
     } catch (err) {
       setError(
@@ -511,18 +520,51 @@ export function LoginPageV2({
                       required
                     />
                   </div>
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    size="lg"
-                    disabled={loading}
-                  >
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {t("auth.signIn")}
-                  </Button>
-                </form>
-              )}
+                  <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="login-captcha"
+                          type="text"
+                          placeholder={t("captcha.placeholder", "图形验证码")}
+                          value={captcha.captchaAnswer}
+                          onChange={(e) => captcha.setCaptchaAnswer(e.target.value.toUpperCase())}
+                          maxLength={4}
+                          autoComplete="off"
+                          className="flex-1 h-10"
+                        />
+                        <div
+                          className="relative h-10 w-32 shrink-0 rounded-md overflow-hidden border bg-white cursor-pointer hover:opacity-80"
+                          onClick={captcha.refresh}
+                        >
+                          {captcha.loading ? (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          ) : captcha.captchaImage ? (
+                            <img
+                              src={captcha.captchaImage}
+                              alt="captcha"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : null}
+                        </div>
+                      </div>
+                      {captcha.error && (
+                        <p className="text-xs text-destructive">{captcha.error}</p>
+                      )}
+                    </div>
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      size="lg"
+                      disabled={loading || captcha.captchaAnswer.length < 4}
+                    >
+                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {t("auth.signIn")}
+                    </Button>
+                  </form>
+                )}
 
               {mode === "login_code" && (
                 <>
@@ -541,15 +583,48 @@ export function LoginPageV2({
                           required
                         />
                       </div>
+                      <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="code-captcha"
+                          type="text"
+                          placeholder={t("captcha.placeholder", "图形验证码")}
+                          value={captcha.captchaAnswer}
+                          onChange={(e) => captcha.setCaptchaAnswer(e.target.value.toUpperCase())}
+                          maxLength={4}
+                          autoComplete="off"
+                          className="flex-1 h-10"
+                        />
+                        <div
+                          className="relative h-10 w-32 shrink-0 rounded-md overflow-hidden border bg-white cursor-pointer hover:opacity-80"
+                          onClick={captcha.refresh}
+                        >
+                          {captcha.loading ? (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          ) : captcha.captchaImage ? (
+                            <img
+                              src={captcha.captchaImage}
+                              alt="captcha"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : null}
+                        </div>
+                      </div>
+                      {captcha.error && (
+                        <p className="text-xs text-destructive">{captcha.error}</p>
+                      )}
+                      </div>
                       {error && <p className="text-sm text-destructive">{error}</p>}
                       <Button
                         type="submit"
                         className="w-full"
                         size="lg"
-                        disabled={loading}
+                        disabled={loading || captcha.captchaAnswer.length < 4}
                       >
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-{t("auth.sendCode")}
+                        {t("auth.sendCode")}
                       </Button>
                     </form>
                   ) : (

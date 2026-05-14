@@ -95,6 +95,8 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 	r.Post("/auth/login", h.Login)
 	r.Post("/auth/request-reset", h.RequestPasswordReset)
 	r.Post("/auth/reset", h.ResetPassword)
+	r.Post("/auth/captcha/new", h.NewCaptcha)
+	r.Post("/auth/captcha/verify", h.VerifyCaptcha)
 
 	// Daemon API routes (require daemon token or valid user token)
 	r.Route("/api/daemon", func(r chi.Router) {
