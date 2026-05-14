@@ -227,7 +227,7 @@ func (h *Handler) SendCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.verifyCaptchaOnce(r.Context(), req.CaptchaID, req.CaptchaAnswer); err != nil {
+	if err := h.checkCaptcha(r.Context(), req.CaptchaID, req.CaptchaAnswer); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid or expired captcha")
 		return
 	}
@@ -287,22 +287,37 @@ func (h *Handler) VerifyCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbCode, err := h.Queries.GetLatestVerificationCode(r.Context(), email)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid or expired code")
-		return
+	isMasterCode := false
+	env := strings.ToLower(os.Getenv("ENV"))
+	isProduction := env == "production"
+
+	if !isProduction {
+		enableMasterCode := os.Getenv("ENABLE_MASTER_CODE") == "true"
+		isMasterCode = enableMasterCode && code == "888888"
 	}
 
-	isMasterCode := code == "888888" && os.Getenv("APP_ENV") != "production"
-	if !isMasterCode && subtle.ConstantTimeCompare([]byte(code), []byte(dbCode.Code)) != 1 {
-		_ = h.Queries.IncrementVerificationCodeAttempts(r.Context(), dbCode.ID)
-		writeError(w, http.StatusBadRequest, "invalid or expired code")
-		return
+	var dbCode db.VerificationCode
+	if !isMasterCode {
+		var err error
+		dbCode, err = h.Queries.GetLatestVerificationCode(r.Context(), email)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid or expired code")
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(code), []byte(dbCode.Code)) != 1 {
+			if dbCode.ID.Valid {
+				_ = h.Queries.IncrementVerificationCodeAttempts(r.Context(), dbCode.ID)
+			}
+			writeError(w, http.StatusBadRequest, "invalid or expired code")
+			return
+		}
 	}
 
-	if err := h.Queries.MarkVerificationCodeUsed(r.Context(), dbCode.ID); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to verify code")
-		return
+	if !isMasterCode {
+		if err := h.Queries.MarkVerificationCodeUsed(r.Context(), dbCode.ID); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to verify code")
+			return
+		}
 	}
 
 	user, err := h.findOrCreateUser(r.Context(), email)

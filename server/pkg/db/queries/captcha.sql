@@ -11,6 +11,12 @@ WHERE id = $1
   AND expires_at > now()
 RETURNING *;
 
+-- name: GetCaptchaForCheck :one
+SELECT * FROM captcha
+WHERE id = $1
+  AND used = FALSE
+  AND expires_at > now();
+
 -- name: DeleteExpiredCaptchas :exec
 DELETE FROM captcha
 WHERE expires_at < now() - interval '10 minutes';

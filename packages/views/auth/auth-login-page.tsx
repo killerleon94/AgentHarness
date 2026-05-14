@@ -206,10 +206,6 @@ export function LoginPageV2({
         setError(t("auth.validation.emailRequired"));
         return;
       }
-      if (!captcha.captchaId) {
-        setError(t("captcha.required", "请先完成图形验证码"));
-        return;
-      }
       setLoading(true);
       setError("");
       try {
@@ -222,7 +218,6 @@ export function LoginPageV2({
             ? err.message
             : "Failed to send code. Make sure the server is running."
         );
-        captcha.refresh();
       } finally {
         setLoading(false);
       }
@@ -265,7 +260,7 @@ export function LoginPageV2({
     if (cooldown > 0) return;
     setError("");
     try {
-      await useAuthStore.getState().sendCode(email);
+      await api._sendCode(email, captcha.captchaId, captcha.captchaAnswer);
       setCooldown(10);
     } catch (err) {
       setError(

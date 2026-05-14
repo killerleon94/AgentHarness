@@ -66,3 +66,23 @@ func (q *Queries) GetAndMarkCaptchaUsed(ctx context.Context, id pgtype.UUID) (Ca
 	)
 	return i, err
 }
+
+const getCaptchaForCheck = `-- name: GetCaptchaForCheck :one
+SELECT id, answer, used, expires_at, created_at FROM captcha
+WHERE id = $1
+  AND used = FALSE
+  AND expires_at > now()
+`
+
+func (q *Queries) GetCaptchaForCheck(ctx context.Context, id pgtype.UUID) (Captcha, error) {
+	row := q.db.QueryRow(ctx, getCaptchaForCheck, id)
+	var i Captcha
+	err := row.Scan(
+		&i.ID,
+		&i.Answer,
+		&i.Used,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}

@@ -145,7 +145,19 @@ func (h *Handler) VerifyCaptcha(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) verifyCaptchaOnce(ctx context.Context, captchaID, answer string) error {
 	id := parseUUID(captchaID)
-	captcha, err := h.Queries.GetAndMarkCaptchaUsed(ctx, id)
+	captcha, err := h.Queries.GetCaptchaForCheck(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(captcha.Answer, answer) {
+		return fmt.Errorf("incorrect captcha")
+	}
+	return nil
+}
+
+func (h *Handler) checkCaptcha(ctx context.Context, captchaID, answer string) error {
+	id := parseUUID(captchaID)
+	captcha, err := h.Queries.GetCaptchaForCheck(ctx, id)
 	if err != nil {
 		return err
 	}
