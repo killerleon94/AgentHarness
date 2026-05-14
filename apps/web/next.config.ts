@@ -32,20 +32,7 @@ const nextConfig: NextConfig = {
     qualities: [75, 80, 85],
   },
   async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${remoteApiUrl}/api/:path*`,
-      },
-      {
-        source: "/ws",
-        destination: `${remoteApiUrl}/ws`,
-      },
-      {
-        source: "/auth/:path*",
-        destination: `${remoteApiUrl}/auth/:path*`,
-      },
-    ];
+    return [];
   },
 };
 

@@ -212,9 +212,23 @@ func (h *Handler) findOrCreateUser(ctx context.Context, email string) (db.User, 
 }
 
 func (h *Handler) SendCode(w http.ResponseWriter, r *http.Request) {
-	var req SendCodeRequest
+	var req struct {
+		Email         string `json:"email"`
+		CaptchaID     string `json:"captcha_id"`
+		CaptchaAnswer string `json:"captcha_answer"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.CaptchaID == "" || req.CaptchaAnswer == "" {
+		writeError(w, http.StatusBadRequest, "captcha is required")
+		return
+	}
+
+	if err := h.verifyCaptchaOnce(r.Context(), req.CaptchaID, req.CaptchaAnswer); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid or expired captcha")
 		return
 	}
 
@@ -638,14 +652,26 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email         string `json:"email"`
+	Password      string `json:"password"`
+	CaptchaID     string `json:"captcha_id"`
+	CaptchaAnswer string `json:"captcha_answer"`
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.CaptchaID == "" || req.CaptchaAnswer == "" {
+		writeError(w, http.StatusBadRequest, "captcha is required")
+		return
+	}
+
+	if err := h.verifyCaptchaOnce(r.Context(), req.CaptchaID, req.CaptchaAnswer); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid or expired captcha")
 		return
 	}
 
