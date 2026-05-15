@@ -48,8 +48,8 @@ func buildSVG(code string) string {
 	charWidth := w / (captchaLen + 1)
 
 	colors := []string{
-		"#1e40af", "#b91c1c", "#15803d", "#7c3aed",
-		"#c2410c", "#0369a1", "#a21caf", "#047857",
+		"#122033", "#8c6730", "#5c6b7a", "#a8916a",
+		"#6b7280", "#9a8b74", "#475569", "#b8956e",
 	}
 
 	for i := range code {
@@ -68,7 +68,7 @@ func buildSVG(code string) string {
 		`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`,
 		w, h, w, h,
 	))
-	sb.WriteString(fmt.Sprintf(`<rect width="%d" height="%d" fill="#f8fafc"/>`, w, h))
+	sb.WriteString(fmt.Sprintf(`<rect width="%d" height="%d" fill="#f4efe6"/>`, w, h))
 
 	for i := 0; i < 30; i++ {
 		sb.WriteString(fmt.Sprintf(
