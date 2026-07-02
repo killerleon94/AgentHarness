@@ -33,11 +33,19 @@ export function AuthInitializer({
     api.setToken(token);
     const wsId = storage.getItem("multica_workspace_id");
 
-    Promise.all([api.getMe(), api.listWorkspaces()])
-      .then(([user, wsList]) => {
+    api.getMe()
+      .then(async (user) => {
         onLogin?.();
         useAuthStore.setState({ user, isLoading: false });
-        useWorkspaceStore.getState().hydrateWorkspace(wsList, wsId);
+
+        if (!user.password_change_required) {
+          try {
+            const wsList = await api.listWorkspaces();
+            useWorkspaceStore.getState().hydrateWorkspace(wsList, wsId);
+          } catch {
+            // workspace load failed, user still logged in
+          }
+        }
       })
       .catch((err) => {
         logger.error("auth init failed", err);

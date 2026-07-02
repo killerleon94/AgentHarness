@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "@multica/ui/lib/utils";
 import { Crown, Shield, User, Plus, MoreHorizontal, UserMinus, Users } from "lucide-react";
 import { ActorAvatar } from "../../common/actor-avatar";
 import type { MemberWithUser, MemberRole } from "@multica/core/types";
@@ -158,17 +159,27 @@ export function MembersTab() {
   }) {
     const rc = roleConfig[member.role];
     const RoleIcon = rc.icon;
-    const canEditRole = canManage && !isSelf && (member.role !== "owner" || canManageOwners);
-    const canRemove = canManage && !isSelf && (member.role !== "owner" || canManageOwners);
+    const isSystemAdmin = member.user_role === "admin";
+    const isDisabled = member.user_disabled === true;
+    const canEditRole = canManage && !isSelf && !isSystemAdmin && (member.role !== "owner" || canManageOwners);
+    const canRemove = canManage && !isSelf && !isSystemAdmin && (member.role !== "owner" || canManageOwners);
     const showMenu = canEditRole || canRemove;
 
     return (
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className={cn("flex items-center gap-3 px-4 py-3", isDisabled && "opacity-60")}>
         <ActorAvatar actorType="member" actorId={member.user_id} size={32} />
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium truncate">{member.name}</div>
+          <div className={cn("text-sm font-medium truncate", isDisabled && "text-muted-foreground")}>
+            {member.name}
+            {isDisabled && (
+              <Badge variant="secondary" className="ml-2 text-xs">Disabled</Badge>
+            )}
+          </div>
           <div className="text-xs text-muted-foreground truncate">{member.email}</div>
         </div>
+        {isSystemAdmin && (
+          <Badge variant="default">System Admin</Badge>
+        )}
         {showMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger

@@ -39,6 +39,7 @@ type WorkspaceResponse struct {
 	Settings    any     `json:"settings"`
 	Repos       any     `json:"repos"`
 	IssuePrefix string  `json:"issue_prefix"`
+	Disabled    bool    `json:"disabled"`
 	CreatedAt   string  `json:"created_at"`
 	UpdatedAt   string  `json:"updated_at"`
 }
@@ -67,6 +68,7 @@ func workspaceToResponse(w db.Workspace) WorkspaceResponse {
 		Settings:    settings,
 		Repos:       repos,
 		IssuePrefix: w.IssuePrefix,
+		Disabled:    w.Disabled,
 		CreatedAt:   timestampToString(w.CreatedAt),
 		UpdatedAt:   timestampToString(w.UpdatedAt),
 	}
@@ -96,14 +98,20 @@ func (h *Handler) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workspaces, err := h.Queries.ListWorkspaces(r.Context(), parseUUID(userID))
+	var workspaceRows []db.Workspace
+	var err error
+	if requestUserRole(r) == "admin" {
+		workspaceRows, err = h.Queries.ListAllWorkspaces(r.Context())
+	} else {
+		workspaceRows, err = h.Queries.ListWorkspaces(r.Context(), parseUUID(userID))
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list workspaces")
 		return
 	}
 
-	resp := make([]WorkspaceResponse, len(workspaces))
-	for i, ws := range workspaces {
+	resp := make([]WorkspaceResponse, len(workspaceRows))
+	for i, ws := range workspaceRows {
 		resp[i] = workspaceToResponse(ws)
 	}
 
@@ -367,6 +375,10 @@ func (h *Handler) CreateMember(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "email is required")
 		return
 	}
+	if !isValidEmail(email) {
+		writeError(w, http.StatusBadRequest, "invalid email format")
+		return
+	}
 
 	role, valid := normalizeMemberRole(req.Role)
 	if !valid {
@@ -381,19 +393,11 @@ func (h *Handler) CreateMember(w http.ResponseWriter, r *http.Request) {
 	user, err := h.Queries.GetUserByEmail(r.Context(), email)
 	if err != nil {
 		if isNotFound(err) {
-			// Auto-create user with email so they can be invited before signing up
-			user, err = h.Queries.CreateUser(r.Context(), db.CreateUserParams{
-				Name:  email,
-				Email: email,
-			})
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "failed to create user")
-				return
-			}
-		} else {
-			writeError(w, http.StatusInternalServerError, "failed to load user")
+			writeError(w, http.StatusNotFound, "user not found")
 			return
 		}
+		writeError(w, http.StatusInternalServerError, "failed to load user")
+		return
 	}
 
 	member, err := h.Queries.CreateMember(r.Context(), db.CreateMemberParams{

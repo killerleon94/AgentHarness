@@ -16,6 +16,7 @@
     "./api/client": "./api/client.ts",
     "./api/ws-client": "./api/ws-client.ts",
     "./api/provider-keys": "./api/provider-keys.ts",
+    "./admin/queries": "./admin/queries.ts",
     "./auth": "./auth/index.ts",
     "./workspace": "./workspace/index.ts",
     "./workspace/queries": "./workspace/queries.ts",

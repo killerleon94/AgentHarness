@@ -32,6 +32,9 @@
     "./auth": "./auth/index.ts",
     "./search": "./search/index.ts",
     "./chat": "./chat/index.ts",
+    "./admin": "./admin/index.ts",
+    "./admin/*": "./admin/*.ts",
+    "./admin/*.tsx": "./admin/*.tsx",
     "./settings": "./settings/index.ts"
   },
   "dependencies": {

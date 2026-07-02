@@ -1,7 +1,11 @@
+-- name: ListAllWorkspaces :many
+SELECT * FROM workspace ORDER BY created_at ASC;
+
+
 -- name: ListWorkspaces :many
 SELECT w.* FROM workspace w
 JOIN member m ON m.workspace_id = w.id
-WHERE m.user_id = $1
+WHERE m.user_id = $1 AND w.disabled = false
 ORDER BY w.created_at ASC;
 
 -- name: GetWorkspace :one
@@ -33,6 +37,10 @@ RETURNING *;
 UPDATE workspace SET issue_counter = issue_counter + 1
 WHERE id = $1
 RETURNING issue_counter;
+
+-- name: UpdateWorkspaceDisabled :exec
+UPDATE workspace SET disabled = $2 WHERE id = $1;
+
 
 -- name: DeleteWorkspace :exec
 DELETE FROM workspace WHERE id = $1;

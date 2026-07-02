@@ -23,6 +23,9 @@ import type {
   WorkspaceRepo,
   MemberWithUser,
   User,
+  BatchCreateUserResult,
+  PaginatedUsersResponse,
+  ImportUsersResult,
   Skill,
   CreateSkillRequest,
   UpdateSkillRequest,
@@ -230,10 +233,14 @@ export class ApiClient {
     });
   }
 
-  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(currentPassword: string | null, newPassword: string): Promise<void> {
+    const body: Record<string, string> = { password: newPassword };
+    if (currentPassword) {
+      body.current_password = currentPassword;
+    }
     await this.fetch("/auth/change-password", {
       method: "POST",
-      body: JSON.stringify({ current_password: currentPassword, password: newPassword }),
+      body: JSON.stringify(body),
     });
   }
 
@@ -263,6 +270,146 @@ export class ApiClient {
     return this.fetch("/api/me", {
       method: "PATCH",
       body: JSON.stringify(data),
+    });
+  }
+
+	// Admin — user management
+	async listUsers(params?: {
+		page?: number;
+		per_page?: number;
+		sort?: string;
+		order?: string;
+		search?: string;
+		disabled?: boolean;
+	}): Promise<PaginatedUsersResponse> {
+		const search = new URLSearchParams();
+		if (params?.page !== undefined) search.set("page", String(params.page));
+		if (params?.per_page !== undefined) search.set("per_page", String(params.per_page));
+		if (params?.sort) search.set("sort", params.sort);
+		if (params?.order) search.set("order", params.order);
+		if (params?.search) search.set("search", params.search);
+		if (params?.disabled !== undefined) search.set("disabled", String(params.disabled));
+		const qs = search.toString();
+		return this.fetch(`/api/admin/users${qs ? "?" + qs : ""}`);
+	}
+
+  async createUser(data: { email: string; name: string }): Promise<User> {
+    return this.fetch("/api/admin/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async batchCreateUsers(users: { email: string; name: string }[]): Promise<BatchCreateUserResult[]> {
+    return this.fetch("/api/admin/users/batch", {
+      method: "POST",
+      body: JSON.stringify({ users }),
+    });
+  }
+
+  async updateUserName(id: string, name: string): Promise<User> {
+    return this.fetch(`/api/admin/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async importUsers(file: File): Promise<ImportUsersResult> {
+    const rid = crypto.randomUUID().slice(0, 8);
+    const start = Date.now();
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const headers: Record<string, string> = {
+      "X-Request-ID": rid,
+      ...this.authHeaders(),
+    };
+
+    this.logger.info(`→ POST /api/admin/users/import`, { rid });
+
+    const res = await fetch(`${this.baseUrl}/api/admin/users/import`, {
+      method: "POST",
+      headers,
+      body: formData,
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) this.handleUnauthorized();
+      const message = await this.parseErrorMessage(res, `Import failed: ${res.status}`);
+      this.logger.error(`← ${res.status} /api/admin/users/import`, { rid, duration: `${Date.now() - start}ms`, error: message });
+      throw new Error(message);
+    }
+
+    this.logger.info(`← ${res.status} /api/admin/users/import`, { rid, duration: `${Date.now() - start}ms` });
+    return res.json() as Promise<ImportUsersResult>;
+  }
+
+  async getRegistrationStatus(): Promise<{ enabled: boolean }> {
+    return this.fetch("/api/admin/settings/registration");
+  }
+
+  async setRegistrationStatus(enabled: boolean): Promise<{ enabled: boolean }> {
+    return this.fetch("/api/admin/settings/registration", {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    });
+  }
+
+  async downloadTemplate(format: "xlsx" | "md" = "xlsx"): Promise<void> {
+    if (format === "md") {
+      const res = await fetch(`${this.baseUrl}/api/admin/users/template?format=md`, {
+        headers: this.authHeaders(),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to download template");
+      const text = await res.text();
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `user-import-template.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    const blob = await this.downloadBlob(`/api/admin/users/template?format=${format}`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `user-import-template.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async disableWorkspace(workspaceId: string): Promise<Workspace> {
+    return this.fetch(`/api/admin/workspaces/${workspaceId}/disable`, { method: "POST" });
+  }
+
+  async enableWorkspace(workspaceId: string): Promise<Workspace> {
+    return this.fetch(`/api/admin/workspaces/${workspaceId}/enable`, { method: "POST" });
+  }
+
+  async disableUser(userId: string): Promise<void> {
+    await this.fetch(`/api/admin/users/${userId}/disable`, { method: "POST" });
+  }
+
+  async enableUser(userId: string): Promise<void> {
+    await this.fetch(`/api/admin/users/${userId}/enable`, { method: "POST" });
+  }
+
+  async batchDisableUsers(userIds: string[]): Promise<{ count: number }> {
+    return this.fetch("/api/admin/users/batch/disable", {
+      method: "POST",
+      body: JSON.stringify({ user_ids: userIds }),
+    });
+  }
+
+  async batchEnableUsers(userIds: string[]): Promise<{ count: number }> {
+    return this.fetch("/api/admin/users/batch/enable", {
+      method: "POST",
+      body: JSON.stringify({ user_ids: userIds }),
     });
   }
 

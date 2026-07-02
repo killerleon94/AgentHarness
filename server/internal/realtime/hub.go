@@ -9,7 +9,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/auth"
+	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
 // MembershipChecker verifies a user belongs to a workspace.
@@ -42,7 +44,7 @@ type Client struct {
 // Hub manages WebSocket connections organized by workspace rooms.
 type Hub struct {
 	rooms      map[string]map[*Client]bool // workspaceID -> clients
-	broadcast  chan []byte                  // global broadcast (daemon events)
+	broadcast  chan []byte                 // global broadcast (daemon events)
 	register   chan *Client
 	unregister chan *Client
 	mu         sync.RWMutex
@@ -221,7 +223,7 @@ func (h *Hub) Broadcast(message []byte) {
 }
 
 // HandleWebSocket upgrades an HTTP connection to WebSocket with JWT or PAT auth.
-func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, w http.ResponseWriter, r *http.Request) {
+func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, queries *db.Queries, w http.ResponseWriter, r *http.Request) {
 	tokenStr := r.URL.Query().Get("token")
 	workspaceID := r.URL.Query().Get("workspace_id")
 
@@ -271,10 +273,48 @@ func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, w http.Resp
 		userID = uid
 	}
 
-	// Verify user is a member of the workspace
-	if !mc.IsMember(r.Context(), userID, workspaceID) {
+	// Verify user state (disabled, password change required) if queries is available
+	var isSysAdmin bool
+	if queries != nil {
+		uid := pgtype.UUID{}
+		if err := uid.Scan(userID); err != nil {
+			http.Error(w, `{"error":"invalid user ID"}`, http.StatusInternalServerError)
+			return
+		}
+		user, err := queries.GetUser(r.Context(), uid)
+		if err != nil {
+			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+			return
+		}
+		if user.Disabled {
+			http.Error(w, `{"error":"account disabled"}`, http.StatusForbidden)
+			return
+		}
+		if user.PasswordChangeRequired {
+			http.Error(w, `{"error":"password change required"}`, http.StatusForbidden)
+			return
+		}
+		isSysAdmin = user.Role == "admin"
+	}
+
+	// Verify user is a member of the workspace (system admins bypass)
+	if !isSysAdmin && !mc.IsMember(r.Context(), userID, workspaceID) {
 		http.Error(w, `{"error":"not a member of this workspace"}`, http.StatusForbidden)
 		return
+	}
+
+	// Check workspace is not disabled (system admins bypass)
+	if !isSysAdmin && queries != nil {
+		var wsID pgtype.UUID
+		if err := wsID.Scan(workspaceID); err != nil {
+			http.Error(w, `{"error":"invalid workspace ID"}`, http.StatusInternalServerError)
+			return
+		}
+		ws, err := queries.GetWorkspace(r.Context(), wsID)
+		if err != nil || ws.Disabled {
+			http.Error(w, `{"error":"workspace is disabled"}`, http.StatusForbidden)
+			return
+		}
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)

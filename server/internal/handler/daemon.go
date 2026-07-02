@@ -25,6 +25,7 @@ import (
 // requireDaemonWorkspaceAccess verifies the caller has access to the given workspace.
 // For daemon tokens (mdt_), compares the token's workspace ID directly.
 // For PAT/JWT fallback, verifies user membership in the workspace.
+// Also checks that the workspace is not disabled.
 func (h *Handler) requireDaemonWorkspaceAccess(w http.ResponseWriter, r *http.Request, workspaceID string) bool {
 	if workspaceID == "" {
 		writeError(w, http.StatusNotFound, "not found")
@@ -37,12 +38,21 @@ func (h *Handler) requireDaemonWorkspaceAccess(w http.ResponseWriter, r *http.Re
 			writeError(w, http.StatusNotFound, "not found")
 			return false
 		}
-		return true
+	} else {
+		// PAT/JWT fallback: verify user is a member of the workspace.
+		if _, ok := h.requireWorkspaceMember(w, r, workspaceID, "not found"); !ok {
+			return false
+		}
 	}
 
-	// PAT/JWT fallback: verify user is a member of the workspace.
-	_, ok := h.requireWorkspaceMember(w, r, workspaceID, "not found")
-	return ok
+	// Check workspace is not disabled.
+	ws, err := h.Queries.GetWorkspace(r.Context(), parseUUID(workspaceID))
+	if err != nil || ws.Disabled {
+		writeError(w, http.StatusNotFound, "not found")
+		return false
+	}
+
+	return true
 }
 
 // requireDaemonRuntimeAccess looks up a runtime and verifies the caller owns its workspace.
@@ -84,15 +94,29 @@ func (h *Handler) verifyDaemonWorkspaceAccess(r *http.Request, workspaceID strin
 	if workspaceID == "" {
 		return false
 	}
+
+	var ok bool
 	if daemonWsID := middleware.DaemonWorkspaceIDFromContext(r.Context()); daemonWsID != "" {
-		return daemonWsID == workspaceID
+		ok = daemonWsID == workspaceID
+	} else {
+		userID := requestUserID(r)
+		if userID == "" {
+			return false
+		}
+		_, err := h.getWorkspaceMember(r.Context(), userID, workspaceID)
+		ok = err == nil
 	}
-	userID := requestUserID(r)
-	if userID == "" {
+	if !ok {
 		return false
 	}
-	_, err := h.getWorkspaceMember(r.Context(), userID, workspaceID)
-	return err == nil
+
+	// Check workspace is not disabled.
+	ws, err := h.Queries.GetWorkspace(r.Context(), parseUUID(workspaceID))
+	if err != nil || ws.Disabled {
+		return false
+	}
+
+	return true
 }
 
 // resolveTaskWorkspaceID derives the workspace ID from a task's issue or chat session.

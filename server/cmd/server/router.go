@@ -84,7 +84,7 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 	mc := &membershipChecker{queries: queries}
 	pr := &patResolver{queries: queries}
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
-		realtime.HandleWebSocket(hub, mc, pr, w, r)
+		realtime.HandleWebSocket(hub, mc, pr, queries, w, r)
 	})
 
 	// Auth (public)
@@ -322,6 +322,35 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 				r.Post("/{id}/read", h.MarkInboxRead)
 				r.Post("/{id}/archive", h.ArchiveInboxItem)
 			})
+		})
+	})
+
+	// --- Admin routes (require admin role) ---
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.Auth(queries))
+		r.Use(middleware.RequireAdmin)
+
+		r.Route("/api/admin/users", func(r chi.Router) {
+			r.Get("/", h.ListUsers)
+			r.Post("/", h.CreateUser)
+			r.Post("/batch", h.BatchCreateUsers)
+			r.Post("/import", h.ImportUsers)
+			r.Get("/template", h.DownloadUserTemplate)
+			r.Patch("/{id}", h.AdminUpdateUserName)
+			r.Post("/{id}/disable", h.DisableUser)
+			r.Post("/{id}/enable", h.EnableUser)
+			r.Post("/batch/disable", h.BatchDisableUsers)
+			r.Post("/batch/enable", h.BatchEnableUsers)
+		})
+
+		r.Route("/api/admin/workspaces", func(r chi.Router) {
+			r.Post("/{id}/disable", h.DisableWorkspace)
+			r.Post("/{id}/enable", h.EnableWorkspace)
+		})
+
+		r.Route("/api/admin/settings", func(r chi.Router) {
+			r.Get("/registration", h.GetRegistrationStatus)
+			r.Post("/registration", h.SetRegistrationStatus)
 		})
 	})
 

@@ -107,6 +107,14 @@ type Attachment struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type Captcha struct {
+	ID        pgtype.UUID        `json:"id"`
+	Answer    string             `json:"answer"`
+	Used      bool               `json:"used"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type ChatMessage struct {
 	ID            pgtype.UUID        `json:"id"`
 	ChatSessionID pgtype.UUID        `json:"chat_session_id"`
@@ -337,6 +345,11 @@ type SkillFile struct {
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
+type SystemSetting struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type TaskMessage struct {
 	ID        pgtype.UUID        `json:"id"`
 	TaskID    pgtype.UUID        `json:"task_id"`
@@ -370,6 +383,8 @@ type User struct {
 	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
 	PasswordHash           pgtype.Text        `json:"password_hash"`
 	PasswordChangeRequired bool               `json:"password_change_required"`
+	Role                   string             `json:"role"`
+	Disabled               bool               `json:"disabled"`
 }
 
 type VerificationCode struct {
@@ -394,4 +409,5 @@ type Workspace struct {
 	Repos        []byte             `json:"repos"`
 	IssuePrefix  string             `json:"issue_prefix"`
 	IssueCounter int32              `json:"issue_counter"`
+	Disabled     bool               `json:"disabled"`
 }

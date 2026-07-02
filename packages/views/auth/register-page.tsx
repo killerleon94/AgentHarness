@@ -9,6 +9,7 @@ import {
   CardContent,
   CardFooter,
 } from "@multica/ui/components/ui/card";
+import { Alert } from "@multica/ui/components/ui/alert";
 import { Input } from "@multica/ui/components/ui/input";
 import { Button } from "@multica/ui/components/ui/button";
 import { Label } from "@multica/ui/components/ui/label";
@@ -35,6 +36,7 @@ export function RegisterPage({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [registrationClosed, setRegistrationClosed] = useState(false);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -60,14 +62,36 @@ export function RegisterPage({
         onTokenObtained?.();
         onSuccess();
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to create account"
-        );
+        const msg = err instanceof Error ? err.message : "Failed to create account";
+        if (msg.includes("closed") || msg.includes("403")) {
+          setRegistrationClosed(true);
+          setError("");
+        } else {
+          setError(msg);
+        }
         setLoading(false);
       }
     },
     [name, email, password, confirmPassword, onSuccess, lastWorkspaceId, onTokenObtained]
   );
+
+  if (registrationClosed) {
+    return (
+      <div className="flex min-h-svh items-center justify-center">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center">
+            {logo && <div className="mx-auto mb-4">{logo}</div>}
+            <CardTitle className="text-2xl">Registration Closed</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="default" className="text-center text-muted-foreground">
+              Registration is currently closed. Please contact your administrator.
+            </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-svh items-center justify-center">
