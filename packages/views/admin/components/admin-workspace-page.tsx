@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Ban, CheckCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Ban, CheckCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
+import { Input } from "@multica/ui/components/ui/input";
 import { Badge } from "@multica/ui/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@multica/ui/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@multica/ui/components/ui/table";
@@ -12,20 +13,36 @@ import { api } from "@multica/core/api";
 import type { Workspace } from "@multica/core/types";
 import { useTranslation } from "@multica/core";
 
-export function adminWorkspaceListOptions() {
+export function adminWorkspaceListOptions(params?: { page?: number; per_page?: number; search?: string }) {
   return queryOptions({
-    queryKey: ["admin", "workspaces"],
-    queryFn: () => api.listWorkspaces(),
+    queryKey: ["admin", "workspaces", params],
+    queryFn: () => api.listWorkspaces(params),
   });
 }
 
 export function AdminWorkspacesPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const { data: workspaces, isLoading } = useQuery(adminWorkspaceListOptions()) as {
-    data: Workspace[] | undefined;
-    isLoading: boolean;
-  };
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(20);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const { data, isLoading } = useQuery(adminWorkspaceListOptions({ page, per_page: perPage, search: search || undefined }));
+
+  // data is always an array from the API
+  const workspaces: Workspace[] = Array.isArray(data) ? data : (data as any)?.workspaces ?? [];
+  const total = Array.isArray(data) ? workspaces.length : (data as any)?.total ?? workspaces.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+
   const [confirmAction, setConfirmAction] = useState<{
     title: string;
     description: string;
@@ -48,34 +65,43 @@ export function AdminWorkspacesPage() {
     qc.invalidateQueries({ queryKey: ["admin", "workspaces"] });
   };
 
-  const list = workspaces ?? [];
-
   return (
     <>
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t("admin.searchWorkspacePlaceholder", "Search by workspace name...")}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>{t("admin.workspaces", "Workspaces")}</CardTitle>
+          <CardTitle>{t("admin.workspaces", "Workspaces")} ({total})</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">{t("common.loading", "Loading...")}</p>
-          ) : list.length === 0 ? (
+          ) : workspaces.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("admin.workspaceNoWorkspaces", "No workspaces found.")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("common.name", "Name")}</TableHead>
-                  <TableHead>Slug</TableHead>
+                  <TableHead>{t("common.owner", "Owner")}</TableHead>
                   <TableHead>{t("common.status", "Status")}</TableHead>
                   <TableHead className="w-40">{t("common.actions", "Actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {list.map((ws) => (
+                {workspaces.map((ws) => (
                   <TableRow key={ws.id}>
                     <TableCell className="font-medium">{ws.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{ws.slug}</TableCell>
+                    <TableCell className="text-muted-foreground">{ws.owner_name || "-"}</TableCell>
                     <TableCell>
                       {ws.disabled ? (
                         <Badge variant="secondary">{t("common.disabled", "Disabled")}</Badge>
@@ -111,6 +137,31 @@ export function AdminWorkspacesPage() {
           )}
         </CardContent>
       </Card>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>{page} / {totalPages}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const input = (e.currentTarget.elements.namedItem("pageInput") as HTMLInputElement);
+              const v = parseInt(input.value, 10);
+              if (v >= 1 && v <= totalPages) setPage(v);
+              input.value = "";
+            }}>
+              <Input name="pageInput" type="number" min={1} max={totalPages}
+                placeholder={`1-${totalPages}`} className="w-16 h-8 text-center text-xs" />
+            </form>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+      </div>
 
       <AlertDialog
         open={!!confirmAction}

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { en } from "./en";
 import { zh } from "./zh";
 import type { LandingDict, Locale } from "./types";
@@ -29,12 +29,17 @@ export function LocaleProvider({
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
   const i18nLanguage = useI18nStore((s) => s.language);
   const setI18nLanguage = useI18nStore((s) => s.setLanguage);
+  const isMounted = useRef(false);
 
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
   }, [locale]);
 
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     if (i18nLanguage !== locale) {
       setLocaleState(i18nLanguage);
     }

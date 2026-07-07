@@ -52,7 +52,16 @@ export type WSEventType =
   | "project:updated"
   | "project:deleted"
   | "pin:created"
-  | "pin:deleted";
+  | "pin:deleted"
+  | "group:message"
+  | "group:message-ack"
+  | "group:message-error"
+  | "group:task-status"
+  | "group:member-joined"
+  | "group:member-left"
+  | "group:dissolved"
+  | "group:register"
+  | "group:unregister";
 
 export interface WSMessage<T = unknown> {
   type: WSEventType;
@@ -249,4 +258,55 @@ export interface ProjectUpdatedPayload {
 
 export interface ProjectDeletedPayload {
   project_id: string;
+}
+
+export interface GroupMessagePayload {
+  id: string;
+  group_id: string;
+  sender_type: string;
+  sender_id: string;
+  sender_name: string;
+  content: string;
+  mentions_type: string[];
+  mentions_id: string[];
+  created_at: string;
+}
+
+export interface GroupMessageAckPayload {
+  id: string;
+  group_id: string;
+  temp_id: string;
+}
+
+export interface GroupMessageErrorPayload {
+  temp_id: string;
+  error: string;
+}
+
+export interface GroupTaskStatusPayload {
+  task_id: string;
+  group_id: string;
+  message_id: string;
+  agent_id: string;
+  agent_name: string;
+  content: string;
+  status: string;
+  error?: string;
+}
+
+export interface GroupMemberJoinedPayload {
+  group_id: string;
+  member_type: string;
+  member_id: string;
+  member_name: string;
+  role: string;
+}
+
+export interface GroupMemberLeftPayload {
+  group_id: string;
+  member_id: string;
+}
+
+export interface GroupDissolvedPayload {
+  group_id: string;
 }

@@ -557,6 +557,7 @@ export const zh: LandingDict = {
     runtimes: "运行实例",
     skills: "技能",
     settings: "设置",
+    groups: "群组",
     pinned: "置顶",
     workspace: "工作区",
     configure: "配置",

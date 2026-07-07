@@ -98,6 +98,8 @@ func (h *Handler) verifyDaemonWorkspaceAccess(r *http.Request, workspaceID strin
 	var ok bool
 	if daemonWsID := middleware.DaemonWorkspaceIDFromContext(r.Context()); daemonWsID != "" {
 		ok = daemonWsID == workspaceID
+	} else if requestUserRole(r) == "admin" {
+		ok = true
 	} else {
 		userID := requestUserID(r)
 		if userID == "" {
@@ -129,6 +131,11 @@ func (h *Handler) resolveTaskWorkspaceID(r *http.Request, task db.AgentTaskQueue
 	if task.ChatSessionID.Valid {
 		if cs, err := h.Queries.GetChatSession(r.Context(), task.ChatSessionID); err == nil {
 			return uuidToString(cs.WorkspaceID)
+		}
+	}
+	if task.GroupID.Valid {
+		if group, err := h.Queries.GetGroup(r.Context(), task.GroupID); err == nil {
+			return uuidToString(group.WorkspaceID)
 		}
 	}
 	return ""
@@ -449,6 +456,63 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 						resp.ChatMessage = msgs[i].Content
 						break
 					}
+				}
+			}
+		}
+	}
+
+	// Group task: populate workspace info and group context from the group table.
+	if task.GroupID.Valid {
+		if group, err := h.Queries.GetGroup(r.Context(), task.GroupID); err == nil {
+			resp.WorkspaceID = uuidToString(group.WorkspaceID)
+			resp.GroupContext = &GroupContext{
+				GroupName:    group.Name,
+				Announcement: group.Announcement,
+			}
+			if task.Context != nil {
+				var ctx struct {
+					Content string                   `json:"content"`
+					History []GroupContextHistoryMsg `json:"history"`
+				}
+				if json.Unmarshal(task.Context, &ctx) == nil {
+					resp.GroupContext.Content = ctx.Content
+					for _, h := range ctx.History {
+						resp.GroupContext.History = append(resp.GroupContext.History, HistoryEntry{
+							SenderName: h.SenderName,
+							SenderType: h.SenderType,
+							Content:    h.Content,
+						})
+					}
+				}
+			}
+			// Fetch group members so the agent knows who it can @mention.
+			if dbMembers, err := h.Queries.ListGroupMembers(r.Context(), task.GroupID); err == nil {
+				for _, m := range dbMembers {
+					var memberName, instructions string
+					if m.MemberType == "member" {
+						if user, err := h.Queries.GetUser(r.Context(), m.MemberID); err == nil {
+							memberName = user.Name
+						}
+					} else {
+						if agent, err := h.Queries.GetAgent(r.Context(), m.MemberID); err == nil {
+							memberName = agent.Name
+							instructions = agent.Instructions
+						}
+					}
+					if memberName == "" {
+						continue
+					}
+					resp.GroupContext.Members = append(resp.GroupContext.Members, GroupMember{
+						Name:         memberName,
+						Type:         m.MemberType,
+						Instructions: instructions,
+					})
+				}
+			}
+			if ws, err := h.Queries.GetWorkspace(r.Context(), group.WorkspaceID); err == nil && ws.Repos != nil {
+				var repos []RepoData
+				if json.Unmarshal(ws.Repos, &repos) == nil && len(repos) > 0 {
+					resp.Repos = repos
 				}
 			}
 		}

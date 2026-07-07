@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { translations } from "../i18n";
 import { useI18nStore } from "../i18n/store";
 
@@ -6,6 +6,14 @@ const defaultLanguage: keyof typeof translations = "en";
 
 export function useTranslation() {
   const language = useI18nStore((state) => state.language);
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (!initialized.current) {
+      initialized.current = true;
+      useI18nStore.getState().initializeFromCookie();
+    }
+  }, []);
 
   const t = useMemo(() => {
     const trans = translations[language] || translations[defaultLanguage];

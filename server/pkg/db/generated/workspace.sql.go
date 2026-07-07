@@ -264,3 +264,64 @@ func (q *Queries) UpdateWorkspaceDisabled(ctx context.Context, arg UpdateWorkspa
 	_, err := q.db.Exec(ctx, updateWorkspaceDisabled, arg.ID, arg.Disabled)
 	return err
 }
+
+const listAllWorkspacesPage = `-- name: ListAllWorkspacesPage :many
+SELECT id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, disabled FROM workspace
+WHERE ($1 = '' OR name ILIKE '%' || $1 || '%'
+                   OR slug ILIKE '%' || $1 || '%')
+ORDER BY created_at ASC
+LIMIT $2 OFFSET $3
+`
+
+type ListAllWorkspacesPageParams struct {
+	Search string `json:"search"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+func (q *Queries) ListAllWorkspacesPage(ctx context.Context, arg ListAllWorkspacesPageParams) ([]Workspace, error) {
+	rows, err := q.db.Query(ctx, listAllWorkspacesPage, arg.Search, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Workspace{}
+	for rows.Next() {
+		var i Workspace
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Description,
+			&i.Settings,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Context,
+			&i.Repos,
+			&i.IssuePrefix,
+			&i.IssueCounter,
+			&i.Disabled,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+const countAllWorkspaces = `-- name: CountAllWorkspaces :one
+SELECT COUNT(*) FROM workspace
+WHERE ($1 = '' OR name ILIKE '%' || $1 || '%'
+                OR slug ILIKE '%' || $1 || '%')
+`
+
+type CountAllWorkspacesParams struct {
+	Search string `json:"search"`
+}
+
+func (q *Queries) CountAllWorkspaces(ctx context.Context, arg CountAllWorkspacesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAllWorkspaces, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}

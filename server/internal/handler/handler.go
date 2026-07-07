@@ -231,6 +231,16 @@ func (h *Handler) requireWorkspaceMember(w http.ResponseWriter, r *http.Request,
 		return db.Member{}, false
 	}
 
+	// System admins get a virtual member, consistent with RequireWorkspaceMember middleware.
+	// When the admin model changes, modify this single function.
+	if requestUserRole(r) == "admin" {
+		return db.Member{
+			WorkspaceID: parseUUID(workspaceID),
+			UserID:      parseUUID(userID),
+			Role:        "admin",
+		}, true
+	}
+
 	member, err := h.getWorkspaceMember(r.Context(), userID, workspaceID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, notFoundMsg)

@@ -80,6 +80,9 @@ type AgentTaskQueue struct {
 	WorkDir          pgtype.Text        `json:"work_dir"`
 	TriggerCommentID pgtype.UUID        `json:"trigger_comment_id"`
 	ChatSessionID    pgtype.UUID        `json:"chat_session_id"`
+	GroupID          pgtype.UUID        `json:"group_id"`
+	GroupMessageID   pgtype.UUID        `json:"group_message_id"`
+	DelegationDepth  int32              `json:"delegation_depth"`
 }
 
 type ApiKey struct {
@@ -178,6 +181,40 @@ type DaemonToken struct {
 	DaemonID    string             `json:"daemon_id"`
 	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type Group struct {
+	ID            pgtype.UUID        `json:"id"`
+	WorkspaceID   pgtype.UUID        `json:"workspace_id"`
+	Name          string             `json:"name"`
+	AvatarUrl     pgtype.Text        `json:"avatar_url"`
+	Announcement  string             `json:"announcement"`
+	CreatedByType string             `json:"created_by_type"`
+	CreatedByID   pgtype.UUID        `json:"created_by_id"`
+	Status        string             `json:"status"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type GroupMember struct {
+	ID         pgtype.UUID        `json:"id"`
+	GroupID    pgtype.UUID        `json:"group_id"`
+	MemberType string             `json:"member_type"`
+	MemberID   pgtype.UUID        `json:"member_id"`
+	Role       string             `json:"role"`
+	JoinedAt   pgtype.Timestamptz `json:"joined_at"`
+}
+
+type GroupMessage struct {
+	ID           pgtype.UUID        `json:"id"`
+	GroupID      pgtype.UUID        `json:"group_id"`
+	SenderType   string             `json:"sender_type"`
+	SenderID     pgtype.UUID        `json:"sender_id"`
+	Content      string             `json:"content"`
+	MentionsType []string           `json:"mentions_type"`
+	MentionsID   []pgtype.UUID      `json:"mentions_id"`
+	SearchVector interface{}        `json:"search_vector"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
 type InboxItem struct {

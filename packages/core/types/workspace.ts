@@ -15,6 +15,7 @@ export interface Workspace {
   repos: WorkspaceRepo[];
   issue_prefix: string;
   disabled?: boolean;
+  owner_name?: string;
   created_at: string;
   updated_at: string;
 }

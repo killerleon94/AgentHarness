@@ -1,6 +1,24 @@
 -- name: ListAllWorkspaces :many
 SELECT * FROM workspace ORDER BY created_at ASC;
 
+-- name: ListWorkspaces :many
+SELECT w.* FROM workspace w
+JOIN member m ON m.workspace_id = w.id
+WHERE m.user_id = $1 AND w.disabled = false
+ORDER BY w.created_at ASC;
+
+-- name: ListAllWorkspacesPage :many
+SELECT * FROM workspace
+WHERE (sqlc.arg('search') = '' OR name ILIKE '%' || sqlc.arg('search') || '%'
+                            OR slug ILIKE '%' || sqlc.arg('search') || '%')
+ORDER BY created_at ASC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: CountAllWorkspaces :one
+SELECT COUNT(*) FROM workspace
+WHERE (sqlc.arg('search') = '' OR name ILIKE '%' || sqlc.arg('search') || '%'
+                            OR slug ILIKE '%' || sqlc.arg('search') || '%');
+
 
 -- name: ListWorkspaces :many
 SELECT w.* FROM workspace w

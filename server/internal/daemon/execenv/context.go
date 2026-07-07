@@ -107,17 +107,27 @@ func renderIssueContext(provider string, ctx TaskContextForEnv) string {
 	var b strings.Builder
 
 	b.WriteString("# Task Assignment\n\n")
-	fmt.Fprintf(&b, "**Issue ID:** %s\n\n", ctx.IssueID)
+
+	if ctx.IssueID != "" {
+		fmt.Fprintf(&b, "**Issue ID:** %s\n\n", ctx.IssueID)
+	} else {
+		b.WriteString("**Type:** Group chat mention\n\n")
+	}
 
 	if ctx.TriggerCommentID != "" {
 		b.WriteString("**Trigger:** Comment Reply\n")
 		b.WriteString("**Triggering comment ID:** `" + ctx.TriggerCommentID + "`\n\n")
-	} else {
+	} else if ctx.IssueID != "" {
 		b.WriteString("**Trigger:** New Assignment\n\n")
 	}
 
 	b.WriteString("## Quick Start\n\n")
-	fmt.Fprintf(&b, "Run `multica issue get %s --output json` to fetch the full issue details.\n\n", ctx.IssueID)
+
+	if ctx.IssueID != "" {
+		fmt.Fprintf(&b, "Run `multica issue get %s --output json` to fetch the full issue details.\n\n", ctx.IssueID)
+	} else {
+		b.WriteString("This task was triggered by a group chat mention. Check your prompt for the message content.\n\n")
+	}
 
 	if len(ctx.AgentSkills) > 0 {
 		b.WriteString("## Agent Skills\n\n")

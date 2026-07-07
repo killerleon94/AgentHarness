@@ -31,6 +31,7 @@ import {
   ChevronRight,
   Zap,
   Ellipsis,
+  MessageCircle,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@multica/ui/components/common/actor-avatar";
@@ -473,6 +474,17 @@ export function AppSidebar({
                 />
               );
             })}
+          </div>
+        </NavSection>
+
+        <NavSection title={t("sidebar.collaborate", "Collaborate")}>
+          <div className="grid-cols-1 flex flex-col gap-1 p-2 rounded-xl bg-sidebar-accent/30 border border-sidebar-border">
+            <GridNavItem
+              icon={MessageCircle}
+              label={t("sidebar.groups", "Groups")}
+              isActive={pathname === "/groups"}
+              onClick={() => push("/groups")}
+            />
           </div>
         </NavSection>
 

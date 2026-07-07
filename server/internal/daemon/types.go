@@ -23,18 +23,42 @@ type RepoData struct {
 // Task represents a claimed task from the server.
 // Agent data (name, skills) is populated by the claim endpoint.
 type Task struct {
-	ID             string     `json:"id"`
-	AgentID        string     `json:"agent_id"`
-	RuntimeID      string     `json:"runtime_id"`
-	IssueID        string     `json:"issue_id"`
-	WorkspaceID    string     `json:"workspace_id"`
-	Agent          *AgentData `json:"agent,omitempty"`
-	Repos          []RepoData `json:"repos,omitempty"`
-	PriorSessionID   string     `json:"prior_session_id,omitempty"`    // Claude session ID from a previous task on this issue
-	PriorWorkDir     string     `json:"prior_work_dir,omitempty"`     // work_dir from a previous task on this issue
-	TriggerCommentID string     `json:"trigger_comment_id,omitempty"` // comment that triggered this task
-	ChatSessionID    string     `json:"chat_session_id,omitempty"`    // non-empty for chat tasks
-	ChatMessage      string     `json:"chat_message,omitempty"`       // user message content for chat tasks
+	ID               string        `json:"id"`
+	AgentID          string        `json:"agent_id"`
+	RuntimeID        string        `json:"runtime_id"`
+	IssueID          string        `json:"issue_id"`
+	WorkspaceID      string        `json:"workspace_id"`
+	Agent            *AgentData    `json:"agent,omitempty"`
+	Repos            []RepoData    `json:"repos,omitempty"`
+	PriorSessionID   string        `json:"prior_session_id,omitempty"`   // Claude session ID from a previous task on this issue
+	PriorWorkDir     string        `json:"prior_work_dir,omitempty"`     // work_dir from a previous task on this issue
+	TriggerCommentID string        `json:"trigger_comment_id,omitempty"` // comment that triggered this task
+	ChatSessionID    string        `json:"chat_session_id,omitempty"`    // non-empty for chat tasks
+	ChatMessage      string        `json:"chat_message,omitempty"`       // user message content for chat tasks
+	GroupContext     *GroupContext `json:"group_context,omitempty"`      // non-nil for group tasks
+}
+
+// GroupContext holds group-task-specific information passed from the server.
+type GroupContext struct {
+	GroupName    string         `json:"group_name"`
+	Content      string         `json:"content"`
+	Announcement string         `json:"announcement,omitempty"`
+	Members      []GroupMember  `json:"members,omitempty"`
+	History      []HistoryEntry `json:"history,omitempty"`
+}
+
+// GroupMember holds a group member's name and type for context.
+type GroupMember struct {
+	Name         string `json:"name"`
+	Type         string `json:"type"`                   // "member" or "agent"
+	Instructions string `json:"instructions,omitempty"` // agent's system instructions / identity
+}
+
+// HistoryEntry represents a previous group message for conversational context.
+type HistoryEntry struct {
+	SenderName string `json:"sender_name"`
+	SenderType string `json:"sender_type"`
+	Content    string `json:"content"`
 }
 
 // AgentData holds agent details returned by the claim endpoint.

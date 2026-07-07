@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { WSClient } from "../api/ws-client";
-import type { WSEventType, StorageAdapter } from "../types";
+import type { WSMessage, WSEventType, StorageAdapter } from "../types";
 import type { StoreApi, UseBoundStore } from "zustand";
 import type { AuthState } from "../auth/store";
 import type { WorkspaceStore } from "../workspace/store";
@@ -21,6 +21,7 @@ type EventHandler = (payload: unknown, actorId?: string) => void;
 interface WSContextValue {
   subscribe: (event: WSEventType, handler: EventHandler) => () => void;
   onReconnect: (callback: () => void) => () => void;
+  send: (message: WSMessage) => void;
 }
 
 const WSContext = createContext<WSContextValue | null>(null);
@@ -89,8 +90,15 @@ export function WSProvider({
     [wsClient],
   );
 
+  const sendCb = useCallback(
+    (message: WSMessage) => {
+      wsClient?.send(message);
+    },
+    [wsClient],
+  );
+
   return (
-    <WSContext.Provider value={{ subscribe, onReconnect: onReconnectCb }}>
+    <WSContext.Provider value={{ subscribe, onReconnect: onReconnectCb, send: sendCb }}>
       {children}
     </WSContext.Provider>
   );

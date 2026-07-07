@@ -53,6 +53,15 @@ import type {
   CreatePinRequest,
   PinnedItemType,
   ReorderPinsRequest,
+  Group,
+  GroupMember,
+  GroupTask,
+  CreateGroupRequest,
+  UpdateGroupRequest,
+  InviteMemberRequest,
+  BatchInviteMembersRequest,
+  BatchInviteMemberResult,
+  ListMessagesResponse,
 } from "../types";
 import { type Logger, noopLogger } from "../logger";
 
@@ -731,8 +740,15 @@ export class ApiClient {
   }
 
   // Workspaces
-  async listWorkspaces(): Promise<Workspace[]> {
-    return this.fetch("/api/workspaces");
+  async listWorkspaces(params?: {
+    page?: number; per_page?: number; search?: string;
+  }): Promise<Workspace[]> {
+    const qs = new URLSearchParams();
+    if (params?.page !== undefined) qs.set("page", String(params.page));
+    if (params?.per_page !== undefined) qs.set("per_page", String(params.per_page));
+    if (params?.search) qs.set("search", params.search);
+    const query = qs.toString();
+    return this.fetch(`/api/workspaces${query ? "?" + query : ""}`);
   }
 
   async getWorkspace(id: string): Promise<Workspace> {
@@ -914,6 +930,68 @@ export class ApiClient {
 
   async cancelTaskById(taskId: string): Promise<void> {
     await this.fetch(`/api/tasks/${taskId}/cancel`, { method: "POST" });
+  }
+
+  // Groups
+  async createGroup(data: CreateGroupRequest): Promise<Group> {
+    return this.fetch("/api/groups", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async listGroups(): Promise<Group[]> {
+    return this.fetch("/api/groups");
+  }
+
+  async getGroup(id: string): Promise<Group> {
+    return this.fetch(`/api/groups/${id}`);
+  }
+
+  async updateGroup(id: string, data: UpdateGroupRequest): Promise<Group> {
+    return this.fetch(`/api/groups/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async inviteMember(groupId: string, data: InviteMemberRequest): Promise<GroupMember> {
+    return this.fetch(`/api/groups/${groupId}/members`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async batchInviteMembers(groupId: string, data: BatchInviteMembersRequest): Promise<{ results: BatchInviteMemberResult[] }> {
+    return this.fetch(`/api/groups/${groupId}/members/batch`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeMember(groupId: string, memberId: string): Promise<void> {
+    await this.fetch(`/api/groups/${groupId}/members/${memberId}`, { method: "DELETE" });
+  }
+
+  async leaveGroup(groupId: string): Promise<void> {
+    await this.fetch(`/api/groups/${groupId}/leave`, { method: "POST" });
+  }
+
+  async deleteGroup(groupId: string): Promise<void> {
+    await this.fetch(`/api/groups/${groupId}`, { method: "DELETE" });
+  }
+
+  async listGroupMessages(groupId: string, params?: { before?: string; after?: string; limit?: number }): Promise<ListMessagesResponse> {
+    const search = new URLSearchParams();
+    if (params?.before) search.set("before", params.before);
+    if (params?.after) search.set("after", params.after);
+    if (params?.limit) search.set("limit", String(params.limit));
+    const qs = search.toString();
+    return this.fetch(`/api/groups/${groupId}/messages${qs ? `?${qs}` : ""}`);
+  }
+
+  async listGroupTasks(groupId: string): Promise<GroupTask[]> {
+    return this.fetch(`/api/groups/${groupId}/tasks`);
   }
 
   async listAttachments(issueId: string): Promise<Attachment[]> {
