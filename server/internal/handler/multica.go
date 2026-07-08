@@ -401,7 +401,11 @@ func verifyToken(token, serverURL string) string {
 	httpURL = strings.TrimSuffix(httpURL, "/ws")
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, _ := http.NewRequest("GET", httpURL+"/api/me", nil)
+	req, err := http.NewRequest("GET", httpURL+"/api/me", nil)
+	if err != nil {
+		slog.Error("failed to build token verification request", "error", err)
+		return ""
+	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := client.Do(req)
