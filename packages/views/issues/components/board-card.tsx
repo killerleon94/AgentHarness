@@ -15,7 +15,7 @@ import { useViewStore } from "@multica/core/issues/stores/view-store-context";
 import type { ChildProgress } from "./list-row";
 import type { IssuePriority } from "@multica/core/types";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { withT, type TranslateFn } from "@multica/core";
 
 function getPriorityDictKey(priority: IssuePriority): string {
   const map: Record<string, string> = {
@@ -46,8 +46,7 @@ export const BoardCardContent = memo(function BoardCardContent({
 }) {
   const cardProperties = useViewStore((s) => s.cardProperties);
   const priorityCfg = PRIORITY_CONFIG[issue.priority];
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
 
   const showPriority = cardProperties.priority && issue.priority !== 'none';
   const showDueDate = cardProperties.dueDate && issue.due_date;

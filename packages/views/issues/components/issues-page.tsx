@@ -17,14 +17,11 @@ import { useWorkspaceId } from "@multica/core/hooks";
 import { issueListOptions } from "@multica/core/issues/queries";
 import { useUpdateIssue } from "@multica/core/issues/mutations";
 import { useIssueSelectionStore } from "@multica/core/issues/stores/selection-store";
-import { useTranslation } from "@multica/core";
+import { useTranslation, type TranslateFn } from "@multica/core";
 import { IssuesHeader } from "./issues-header";
 import { BoardView } from "./board-view";
 import { ListView } from "./list-view";
 import { BatchActionToolbar } from "./batch-action-toolbar";
-
-// 定义翻译函数类型
-type TranslateFn = (key: string, fallback: string) => string;
 
 interface IssuesPageProps {
   t?: TranslateFn;

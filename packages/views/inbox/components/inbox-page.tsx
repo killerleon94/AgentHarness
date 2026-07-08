@@ -17,7 +17,7 @@ import {
 } from "@multica/core/inbox/mutations";
 import { IssueDetail } from "../../issues/components";
 import { useNavigation } from "../../navigation";
-import { useTranslation } from "@multica/core";
+import { useTranslation, type TranslateFn } from "@multica/core";
 import { toast } from "sonner";
 import {
   MoreHorizontal,
@@ -49,7 +49,6 @@ import {
 import { useIsMobile } from "@multica/ui/hooks/use-mobile";
 import { InboxListItem, timeAgo } from "./inbox-list-item";
 
-type TranslateFn = (key: string, fallback: string) => string;
 
 interface InboxPageProps {
   t?: TranslateFn;

@@ -8,7 +8,7 @@ import {
   PopoverContent,
 } from "@multica/ui/components/ui/popover";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { withT, type TranslateFn } from "@multica/core";
 
 export function PropertyPicker({
   open,
@@ -36,8 +36,7 @@ export function PropertyPicker({
   t?: TranslateFn;
 }) {
   const [query, setQuery] = useState("");
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
 
   const handleOpenChange = useCallback(
     (v: boolean) => {

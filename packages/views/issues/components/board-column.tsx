@@ -21,7 +21,7 @@ import { StatusIcon } from "./status-icon";
 import { DraggableBoardCard } from "./board-card";
 import type { ChildProgress } from "./list-row";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { fallbackT, type TranslateFn } from "@multica/core";
 
 export function BoardColumn({
   status,
@@ -30,7 +30,7 @@ export function BoardColumn({
   childProgressMap,
   totalCount,
   footer,
-  t = (_, fallback) => fallback,
+  t = fallbackT,
 }: {
   status: IssueStatus;
   issueIds: string[];

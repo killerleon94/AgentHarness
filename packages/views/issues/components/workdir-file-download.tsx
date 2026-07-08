@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from "@multica/ui/components/ui/tooltip";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { withT, type TranslateFn } from "@multica/core";
 
 interface WorkdirFileBrowserProps {
   workspaceId: string;
@@ -49,8 +49,7 @@ export function WorkdirFileBrowser({
   className,
   t,
 }: WorkdirFileBrowserProps) {
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
   const [taskData, setTaskData] = useState<TaskFiles[]>([]);
   const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());

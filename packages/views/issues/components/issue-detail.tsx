@@ -83,6 +83,7 @@ import { useModalStore } from "@multica/core/modals";
 import { timeAgo } from "@multica/core/utils";
 import { cn } from "@multica/ui/lib/utils";
 import { pinListOptions } from "@multica/core/pins";
+import { fallbackT, type TranslateFn } from "@multica/core";
 import { useCreatePin, useDeletePin } from "@multica/core/pins";
 
 import { ProgressRing } from "./progress-ring";
@@ -139,13 +140,10 @@ function statusLabelWithT(status: string, t: TranslateFn): string {
   return t(`board.statuses.${key}`, cfg?.label ?? status);
 }
 
-// 定义翻译函数类型
-type TranslateFn = (key: string, fallback: string) => string;
-
 function formatActivity(
   entry: TimelineEntry,
   resolveActorName?: (type: string, id: string) => string,
-  t: TranslateFn = (_, fb) => fb,
+  t: TranslateFn = fallbackT,
 ): string {
   const details = (entry.details ?? {}) as Record<string, string>;
   switch (entry.action) {
@@ -246,7 +244,7 @@ export function IssueDetail({
   defaultSidebarOpen = true, 
   layoutId = "multica_issue_detail_layout", 
   highlightCommentId,
-  t = (_, fallback) => fallback 
+  t = fallbackT 
 }: IssueDetailProps) {
   const id = issueId;
   const router = useNavigation();

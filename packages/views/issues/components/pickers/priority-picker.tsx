@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import type { IssuePriority, UpdateIssueRequest } from "@multica/core/types";
 import { PRIORITY_ORDER, PRIORITY_CONFIG } from "@multica/core/issues/config";
 import { PriorityIcon } from "../priority-icon";
 import { PropertyPicker, PickerItem } from "./property-picker";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { useControllableOpen, fallbackT, withT, type TranslateFn } from "@multica/core";
 
 function getPriorityDictKey(priority: IssuePriority): string {
   const map: Record<string, string> = {
@@ -27,7 +26,7 @@ export function PriorityPicker({
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
   align,
-  t = (_, f) => f,
+  t = fallbackT,
 }: {
   priority: IssuePriority;
   onUpdate: (updates: Partial<UpdateIssueRequest>) => void;
@@ -38,12 +37,9 @@ export function PriorityPicker({
   align?: "start" | "center" | "end";
   t?: TranslateFn;
 }) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const open = controlledOpen ?? internalOpen;
-  const setOpen = controlledOnOpenChange ?? setInternalOpen;
+  const [open, setOpen] = useControllableOpen(controlledOpen, controlledOnOpenChange);
   const cfg = PRIORITY_CONFIG[priority];
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
 
   return (
     <PropertyPicker

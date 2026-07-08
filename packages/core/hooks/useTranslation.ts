@@ -4,6 +4,20 @@ import { useI18nStore } from "../i18n/store";
 
 const defaultLanguage: keyof typeof translations = "en";
 
+/**
+ * Translate function accepting a key and a fallback string.
+ * Shared across view components that receive an optional `t` prop.
+ */
+export type TranslateFn = (key: string, fallback: string) => string;
+
+/** Identity translate that always returns the provided fallback string. */
+export const fallbackT: TranslateFn = (_key, fallback) => fallback;
+
+/** Resolve an optional translate prop to a concrete function, defaulting to `fallbackT`. */
+export function withT(t?: TranslateFn): TranslateFn {
+  return t ?? fallbackT;
+}
+
 export function useTranslation() {
   const language = useI18nStore((state) => state.language);
 

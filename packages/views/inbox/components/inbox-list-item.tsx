@@ -6,10 +6,10 @@ import { Archive } from "lucide-react";
 import type { InboxItem } from "@multica/core/types";
 import { getInboxDetailLabel } from "./inbox-detail-label";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { withT, type TranslateFn } from "@multica/core";
 
 function timeAgo(dateStr: string, t?: TranslateFn): string {
-  const trans = t || ((_key: string, fallback: string) => fallback);
+  const trans = withT(t);
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return trans("chat.justNow", "just now");

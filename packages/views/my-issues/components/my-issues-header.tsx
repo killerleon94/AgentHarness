@@ -51,7 +51,7 @@ import type { Issue } from "@multica/core/types";
 import { myIssuesViewStore, type MyIssuesScope } from "@multica/core/issues/stores/my-issues-view-store";
 import { useModalStore } from "@multica/core/modals";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { withT, type TranslateFn } from "@multica/core";
 
 interface MyIssuesHeaderProps {
   allIssues: Issue[];
@@ -113,8 +113,7 @@ function useIssueCounts(allIssues: Issue[]) {
 // ---------------------------------------------------------------------------
 
 export function MyIssuesHeader({ allIssues, t: tProp }: MyIssuesHeaderProps) {
-  const defaultT: TranslateFn = (_key, fallback) => fallback;
-  const t = tProp || defaultT;
+  const t = withT(tProp);
 
   const getScopeLabel = (key: string, fallback: string) => t(`myIssues.scopes.${key}.label`, fallback);
   const getScopeDesc = (key: string, fallback: string) => t(`myIssues.scopes.${key}.description`, fallback);

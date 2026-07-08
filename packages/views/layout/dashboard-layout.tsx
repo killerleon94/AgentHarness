@@ -6,8 +6,7 @@ import { ModalRegistry } from "../modals/registry";
 import { AppSidebar } from "./app-sidebar";
 import { DashboardGuard } from "./dashboard-guard";
 
-// 定义翻译函数类型
-type TranslateFn = (key: string, fallback: string) => string;
+import type { TranslateFn } from "@multica/core";
 
 interface DashboardLayoutProps {
   children: ReactNode;

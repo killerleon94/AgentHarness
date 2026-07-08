@@ -25,9 +25,8 @@ import { useUpdateIssue, useLoadMoreDoneIssues } from "@multica/core/issues/muta
 import { myIssuesViewStore } from "@multica/core/issues/stores/my-issues-view-store";
 import { MyIssuesHeader } from "./my-issues-header";
 import type { ReactNode } from "react";
-import { useTranslation } from "@multica/core";
+import { useTranslation, type TranslateFn } from "@multica/core";
 
-type TranslateFn = (key: string, fallback: string) => string;
 
 interface MyIssuesPageProps {
   t?: TranslateFn;

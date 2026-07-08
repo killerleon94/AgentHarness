@@ -5,7 +5,7 @@ import { useActorName } from "@multica/core/workspace/hooks";
 import { StatusIcon, PriorityIcon } from "../../issues/components";
 import type { InboxItem, InboxItemType, IssueStatus, IssuePriority } from "@multica/core/types";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { withT, type TranslateFn } from "@multica/core";
 
 const typeLabelsFallbacks: Record<InboxItemType, string> = {
   issue_assigned: "Assigned",
@@ -37,8 +37,7 @@ function shortDate(dateStr: string): string {
 export function getInboxDetailLabel(item: InboxItem, t?: TranslateFn): React.ReactNode {
   const { getActorName } = useActorName();
   const details = item.details ?? {};
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
 
   switch (item.type) {
     case "status_changed": {

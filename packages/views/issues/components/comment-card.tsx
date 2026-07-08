@@ -41,7 +41,7 @@ import type { TimelineEntry } from "@multica/core/types";
 // Types
 // ---------------------------------------------------------------------------
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { withT, type TranslateFn } from "@multica/core";
 
 interface CommentCardProps {
   issueId: string;
@@ -291,8 +291,7 @@ function CommentCard({
   highlightedCommentId,
   t,
 }: CommentCardProps) {
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
   const { getActorName } = useActorName();
   const { uploadWithToast } = useFileUpload(api, (err) => toast.error(err.message));
   const [open, setOpen] = useState(true);

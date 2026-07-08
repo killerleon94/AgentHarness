@@ -43,8 +43,7 @@ import { BoardCardContent } from "./board-card";
 import { InfiniteScrollSentinel } from "./infinite-scroll-sentinel";
 import type { ChildProgress } from "./list-row";
 
-// 定义翻译函数类型
-type TranslateFn = (key: string, fallback: string) => string;
+import { fallbackT, type TranslateFn } from "@multica/core";
 
 const COLUMN_IDS = new Set<string>(ALL_STATUSES);
 
@@ -121,7 +120,7 @@ export function BoardView({
   doneTotal: doneTotalOverride,
   myIssuesScope,
   myIssuesFilter,
-  t = (_, fallback) => fallback, // 接收翻译函数
+  t = fallbackT,
 }: {
   issues: Issue[];
   allIssues: Issue[];
@@ -338,7 +337,7 @@ export function BoardView({
 function HiddenColumnsPanel({
   hiddenStatuses,
   issues,
-  t = (_, fallback) => fallback,
+  t = fallbackT,
 }: {
   hiddenStatuses: IssueStatus[];
   issues: Issue[];
