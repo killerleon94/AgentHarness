@@ -69,9 +69,21 @@ func New(queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *event
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
+	// Marshal before writing the header so an encoding failure can still be
+	// reported as a 500 instead of a truncated body under a success status.
+	body, err := json.Marshal(v)
+	if err != nil {
+		slog.Error("failed to encode JSON response", "error", err, "status", status)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":"internal server error"}`))
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if _, err := w.Write(body); err != nil {
+		slog.Error("failed to write JSON response", "error", err)
+	}
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {
