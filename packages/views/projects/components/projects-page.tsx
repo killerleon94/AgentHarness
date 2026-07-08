@@ -38,9 +38,8 @@ import { TitleEditor } from "../../editor";
 import { EmojiPicker } from "@multica/ui/components/common/emoji-picker";
 import type { Project, ProjectStatus, ProjectPriority } from "@multica/core/types";
 import { PriorityIcon } from "../../issues/components/priority-icon";
-import { useTranslation } from "@multica/core";
+import { useTranslation, withT, type TranslateFn } from "@multica/core";
 
-type TranslateFn = (key: string, fallback: string) => string;
 
 type ViewMode = "grid" | "list";
 
@@ -78,8 +77,7 @@ const StatusIcon = ({ status, className }: { status: ProjectStatus; className?: 
 };
 
 function ProjectCard({ project, t }: { project: Project; t?: TranslateFn }) {
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
   
   const formatRelativeDate = (date: string): string => {
     const diff = Date.now() - new Date(date).getTime();
@@ -175,8 +173,7 @@ function ProjectCard({ project, t }: { project: Project; t?: TranslateFn }) {
 }
 
 function ProjectRow({ project, t }: { project: Project; t?: TranslateFn }) {
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
   
   const formatRelativeDate = (date: string): string => {
     const diff = Date.now() - new Date(date).getTime();
@@ -282,8 +279,7 @@ function PillButton({
 }
 
 function CreateProjectDialog({ open, onOpenChange, t: tProp }: { open: boolean; onOpenChange: (open: boolean) => void; t?: TranslateFn }) {
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const t = tProp || defaultT;
+  const t = withT(tProp);
   
   const router = useNavigation();
   const workspaceName = useWorkspaceStore((s) => s.workspace?.name);

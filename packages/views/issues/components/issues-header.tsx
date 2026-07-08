@@ -68,7 +68,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@multica/ui/components/
 import type { Issue, IssueStatus, IssuePriority } from "@multica/core/types";
 import { useModalStore } from "@multica/core/modals";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { fallbackT, type TranslateFn } from "@multica/core";
 
 const FILTER_ITEM_CLASS =
   "group/fitem pr-1.5! [&>[data-slot=dropdown-menu-checkbox-item-indicator]]:hidden";
@@ -151,7 +151,7 @@ function ActorSubContent({
   includeNoAssignee,
   onToggleNoAssignee,
   noAssigneeCount,
-  t = (_, fb) => fb,
+  t = fallbackT,
 }: {
   counts: Map<string, number>;
   selected: ActorFilterValue[];
@@ -292,7 +292,7 @@ function ProjectSubContent({
   includeNoProject,
   onToggleNoProject,
   noProjectCount,
-  t = (_, fb) => fb,
+  t = fallbackT,
 }: {
   counts: Map<string, number>;
   selected: string[];
@@ -383,7 +383,7 @@ function ProjectSubContent({
   );
 }
 
-export function IssuesHeader({ scopedIssues, t = (_, fb) => fb }: { scopedIssues: Issue[]; t?: TranslateFn }) {
+export function IssuesHeader({ scopedIssues, t = fallbackT }: { scopedIssues: Issue[]; t?: TranslateFn }) {
   const scope = useIssuesScopeStore((s) => s.scope);
   const setScope = useIssuesScopeStore((s) => s.setScope);
 

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import type { AgentRuntime, MemberWithUser } from "@multica/core/types";
 import { useWorkspaceId } from "@multica/core/hooks";
-import { useTranslation } from "@multica/core";
+import { useTranslation, type TranslateFn } from "@multica/core";
 import { memberListOptions } from "@multica/core/workspace/queries";
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ function RuntimeListItem({
   ownerMember: MemberWithUser | null;
   hasUpdate: boolean;
   onClick: () => void;
-  t: (key: string, fallback: string) => string;
+  t: TranslateFn;
 }) {
   return (
     <button

@@ -11,7 +11,7 @@ import {
 } from "@multica/ui/components/ui/popover";
 import { Button } from "@multica/ui/components/ui/button";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { withT, type TranslateFn } from "@multica/core";
 
 export function DueDatePicker({
   dueDate,
@@ -31,8 +31,7 @@ export function DueDatePicker({
   const [open, setOpen] = useState(false);
   const date = dueDate ? new Date(dueDate) : undefined;
   const isOverdue = date ? date < new Date() : false;
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

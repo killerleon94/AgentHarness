@@ -206,22 +206,32 @@ vi.mock("@multica/core/modals", () => ({
 }));
 
 // Mock @multica/core
-vi.mock("@multica/core", () => ({
-  useTranslation: () => ({
-    t: (key: string, fallback: string) => {
-      // Return English fallbacks for tests, with specific translations
-      const translations: Record<string, string> = {
-        'issuesHeader.scopes.all.label': 'All',
-        'issuesHeader.scopes.members.label': 'Members', 
-        'issuesHeader.scopes.agents.label': 'Agents',
-        'issues.emptyState.title': 'No issues yet',
-        'issues.emptyState.subtitle': 'Create an issue to get started.',
-        'dashboard.issues.title': 'Issues',
-      };
-      return translations[key] || fallback;
+vi.mock("@multica/core", async () => {
+  const { useState } = await import("react");
+  const fallbackT = (_key: string, fallback: string) => fallback;
+  return {
+    useTranslation: () => ({
+      t: (key: string, fallback: string) => {
+        // Return English fallbacks for tests, with specific translations
+        const translations: Record<string, string> = {
+          'issuesHeader.scopes.all.label': 'All',
+          'issuesHeader.scopes.members.label': 'Members',
+          'issuesHeader.scopes.agents.label': 'Agents',
+          'issues.emptyState.title': 'No issues yet',
+          'issues.emptyState.subtitle': 'Create an issue to get started.',
+          'dashboard.issues.title': 'Issues',
+        };
+        return translations[key] || fallback;
+      },
+    }),
+    fallbackT,
+    withT: (t?: typeof fallbackT) => t ?? fallbackT,
+    useControllableOpen: (controlledOpen?: boolean, controlledOnOpenChange?: (open: boolean) => void) => {
+      const [internalOpen, setInternalOpen] = useState(false);
+      return [controlledOpen ?? internalOpen, controlledOnOpenChange ?? setInternalOpen];
     },
-  }),
-}));
+  };
+});
 
 // Mock sonner toast
 vi.mock("sonner", () => ({

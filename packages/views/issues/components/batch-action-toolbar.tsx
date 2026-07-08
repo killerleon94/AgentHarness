@@ -19,9 +19,9 @@ import { useIssueSelectionStore } from "@multica/core/issues/stores/selection-st
 import { useBatchUpdateIssues, useBatchDeleteIssues } from "@multica/core/issues/mutations";
 import { StatusPicker, PriorityPicker, AssigneePicker } from "./pickers";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { fallbackT, type TranslateFn } from "@multica/core";
 
-export function BatchActionToolbar({ t = (_, fb) => fb }: { t?: TranslateFn }) {
+export function BatchActionToolbar({ t = fallbackT }: { t?: TranslateFn }) {
   const selectedIds = useIssueSelectionStore((s) => s.selectedIds);
   const clear = useIssueSelectionStore((s) => s.clear);
   const count = selectedIds.size;

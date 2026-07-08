@@ -19,7 +19,7 @@ import { InfiniteScrollSentinel } from "./infinite-scroll-sentinel";
 
 const EMPTY_PROGRESS_MAP = new Map<string, ChildProgress>();
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { fallbackT, type TranslateFn } from "@multica/core";
 
 const getStatusDictKey = (status: IssueStatus): string => {
   const map: Record<string, string> = {
@@ -41,7 +41,7 @@ export function ListView({
   doneTotal: doneTotalOverride,
   myIssuesScope,
   myIssuesFilter,
-  t = (_, fallback) => fallback,
+  t = fallbackT,
 }: {
   issues: Issue[];
   visibleStatuses: IssueStatus[];

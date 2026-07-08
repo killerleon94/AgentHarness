@@ -16,7 +16,7 @@ import {
   PickerEmpty,
 } from "./property-picker";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { useControllableOpen, withT, type TranslateFn } from "@multica/core";
 
 export function canAssignAgent(agent: Agent, userId: string | undefined, memberRole: string | undefined): boolean {
   if (agent.visibility !== "private") return true;
@@ -46,9 +46,7 @@ export function AssigneePicker({
   align?: "start" | "center" | "end";
   t?: TranslateFn;
 }) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const open = controlledOpen ?? internalOpen;
-  const setOpen = controlledOnOpenChange ?? setInternalOpen;
+  const [open, setOpen] = useControllableOpen(controlledOpen, controlledOnOpenChange);
   const [filter, setFilter] = useState("");
   const user = useAuthStore((s) => s.user);
   const wsId = useWorkspaceId();
@@ -56,8 +54,7 @@ export function AssigneePicker({
   const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const { data: frequency = [] } = useQuery(assigneeFrequencyOptions(wsId));
   const { getActorName } = useActorName();
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
 
   const currentMember = members.find((m) => m.user_id === user?.id);
   const memberRole = currentMember?.role;

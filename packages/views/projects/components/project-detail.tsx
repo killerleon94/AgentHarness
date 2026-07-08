@@ -17,7 +17,7 @@ import { memberListOptions, agentListOptions } from "@multica/core/workspace/que
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspaceStore } from "@multica/core/workspace";
 import { useActorName } from "@multica/core/workspace/hooks";
-import { useTranslation } from "@multica/core";
+import { useTranslation, withT, type TranslateFn } from "@multica/core";
 import { PROJECT_STATUS_ORDER, PROJECT_STATUS_CONFIG, PROJECT_PRIORITY_ORDER, PROJECT_PRIORITY_CONFIG } from "@multica/core/projects/config";
 import { BOARD_STATUSES } from "@multica/core/issues/config";
 import { createIssueViewStore } from "@multica/core/issues/stores/view-store";
@@ -64,7 +64,6 @@ import {
   AlertDialogTitle,
 } from "@multica/ui/components/ui/alert-dialog";
 
-type TranslateFn = (key: string, fallback: string) => string;
 
 function getStatusDictKey(status: ProjectStatus): string {
   const map: Record<string, string> = {
@@ -116,8 +115,7 @@ function PropRow({
 const projectViewStore = createIssueViewStore("project_issues_view");
 
 function ProjectIssuesContent({ projectIssues, t }: { projectIssues: Issue[]; t?: TranslateFn }) {
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
   
   const viewMode = useViewStore((s) => s.viewMode);
   const statusFilters = useViewStore((s) => s.statusFilters);

@@ -10,13 +10,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { cn } from "@multica/ui/lib/utils";
 import type { Attachment } from "@multica/core/types";
+import { fallbackT, type TranslateFn } from "@multica/core";
 
 interface AttachmentListProps {
   issueId: string;
-  t?: (key: string, fallback: string) => string;
+  t?: TranslateFn;
 }
 
-export function AttachmentList({ issueId, t = (_, fallback) => fallback }: AttachmentListProps) {
+export function AttachmentList({ issueId, t = fallbackT }: AttachmentListProps) {
   const user = useAuthStore((s) => s.user);
   const [collapsed, setCollapsed] = useState(false);
   const queryClient = useQueryClient();

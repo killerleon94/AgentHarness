@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import type { IssueStatus, UpdateIssueRequest } from "@multica/core/types";
 import { ALL_STATUSES, STATUS_CONFIG } from "@multica/core/issues/config";
 import { StatusIcon } from "../status-icon";
 import { PropertyPicker, PickerItem } from "./property-picker";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { useControllableOpen, withT, type TranslateFn } from "@multica/core";
 
 function getStatusDictKey(status: IssueStatus): string {
   const map: Record<string, string> = {
@@ -40,12 +39,9 @@ export function StatusPicker({
   align?: "start" | "center" | "end";
   t?: TranslateFn;
 }) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const open = controlledOpen ?? internalOpen;
-  const setOpen = controlledOnOpenChange ?? setInternalOpen;
+  const [open, setOpen] = useControllableOpen(controlledOpen, controlledOnOpenChange);
   const cfg = STATUS_CONFIG[status];
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
 
   return (
     <PropertyPicker

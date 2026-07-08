@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
 } from "@multica/ui/components/ui/dropdown-menu";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { withT, type TranslateFn } from "@multica/core";
 
 export function ProjectPicker({
   projectId,
@@ -31,8 +31,7 @@ export function ProjectPicker({
   const wsId = useWorkspaceId();
   const { data: projects = [] } = useQuery(projectListOptions(wsId));
   const current = projects.find((p) => p.id === projectId);
-  const defaultT = (_key: string, fallback: string) => fallback;
-  const translate = t || defaultT;
+  const translate = withT(t);
 
   return (
     <DropdownMenu>

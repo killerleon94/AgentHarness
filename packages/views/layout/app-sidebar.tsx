@@ -68,7 +68,7 @@ import { pinKeys } from "@multica/core/pins/queries";
 import { useDeletePin, useReorderPins } from "@multica/core/pins/mutations";
 import type { PinnedItem } from "@multica/core/types";
 
-type TranslateFn = (key: string, fallback: string) => string;
+import { fallbackT, type TranslateFn } from "@multica/core";
 
 interface AppSidebarProps {
   topSlot?: React.ReactNode;
@@ -256,7 +256,7 @@ export function AppSidebar({
   searchSlot,
   headerClassName,
   headerStyle,
-  t = (_, fallback) => fallback,
+  t = fallbackT,
 }: AppSidebarProps = {}) {
   const { pathname, push } = useNavigation();
   const user = useAuthStore((s) => s.user);
