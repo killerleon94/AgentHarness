@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,7 +22,12 @@ func main() {
 	logger.Init()
 
 	// Warn about missing configuration
+	isProduction := strings.ToLower(os.Getenv("ENV")) == "production"
 	if os.Getenv("JWT_SECRET") == "" {
+		if isProduction {
+			slog.Error("JWT_SECRET is not set — refusing to start in production with the insecure default secret. Set JWT_SECRET.")
+			os.Exit(1)
+		}
 		slog.Warn("JWT_SECRET is not set — using insecure default. Set JWT_SECRET for production use.")
 	}
 	if os.Getenv("RESEND_API_KEY") == "" {

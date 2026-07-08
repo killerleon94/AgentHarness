@@ -4,10 +4,10 @@
 
 set -e
 
-# Configuration
-SERVER_URL="http://localhost:8080"
-WORKSPACE_ID="e36eef34-fc31-4591-8a55-0e955676e981"
-TOKEN="mul_637abede6f98b0b3e5a2039258ed44610a397bab"
+# Configuration (provide via environment variables — do not hardcode secrets)
+SERVER_URL="${SERVER_URL:-http://localhost:8080}"
+WORKSPACE_ID="${WORKSPACE_ID:?Set WORKSPACE_ID to the target workspace UUID}"
+TOKEN="${MULTICA_TOKEN:?Set MULTICA_TOKEN to a personal access token (mul_...)}"
 
 echo "============================================"
 echo "Kimi Agent Execution Test"
