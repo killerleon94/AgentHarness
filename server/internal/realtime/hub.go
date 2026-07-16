@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -9,7 +10,10 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/auth"
+	db "github.com/multica-ai/multica/server/pkg/db/generated"
+	"github.com/multica-ai/multica/server/pkg/protocol"
 )
 
 // MembershipChecker verifies a user belongs to a workspace.
@@ -39,19 +43,26 @@ type Client struct {
 	workspaceID string
 }
 
-// Hub manages WebSocket connections organized by workspace rooms.
+// InboundHandler processes incoming WebSocket messages from clients.
+// Returns response bytes and whether to send ack/error back to the sender.
+type InboundHandler func(ctx context.Context, client *Client, msgType string, payload json.RawMessage) (response []byte, success bool)
+
+// Hub manages WebSocket connections organized by workspace rooms and group rooms.
 type Hub struct {
-	rooms      map[string]map[*Client]bool // workspaceID -> clients
-	broadcast  chan []byte                  // global broadcast (daemon events)
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.RWMutex
+	rooms          map[string]map[*Client]bool // workspaceID -> clients
+	groupRooms     map[string]map[*Client]bool // groupID -> clients (for group chat)
+	broadcast      chan []byte                 // global broadcast (daemon events)
+	register       chan *Client
+	unregister     chan *Client
+	mu             sync.RWMutex
+	InboundHandler InboundHandler // handles inbound WS messages
 }
 
 // NewHub creates a new Hub instance.
 func NewHub() *Hub {
 	return &Hub{
 		rooms:      make(map[string]map[*Client]bool),
+		groupRooms: make(map[string]map[*Client]bool),
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
@@ -88,6 +99,15 @@ func (h *Hub) Run() {
 					}
 				}
 			}
+			// Clean up group rooms
+			for gid, gclients := range h.groupRooms {
+				if _, exists := gclients[client]; exists {
+					delete(gclients, client)
+					if len(gclients) == 0 {
+						delete(h.groupRooms, gid)
+					}
+				}
+			}
 			total := 0
 			for _, r := range h.rooms {
 				total += len(r)
@@ -98,11 +118,14 @@ func (h *Hub) Run() {
 		case message := <-h.broadcast:
 			// Global broadcast for daemon events (no workspace filtering)
 			h.mu.RLock()
+			// Copy bytes — json.Marshal may reuse pooled buffer
+			msgCopy := make([]byte, len(message))
+			copy(msgCopy, message)
 			var slow []*Client
 			for _, clients := range h.rooms {
 				for client := range clients {
 					select {
-					case client.send <- message:
+					case client.send <- msgCopy:
 					default:
 						slow = append(slow, client)
 					}
@@ -133,10 +156,13 @@ func (h *Hub) Run() {
 func (h *Hub) BroadcastToWorkspace(workspaceID string, message []byte) {
 	h.mu.RLock()
 	clients := h.rooms[workspaceID]
+	// Copy bytes — json.Marshal may reuse pooled buffer
+	msgCopy := make([]byte, len(message))
+	copy(msgCopy, message)
 	var slow []*Client
 	for client := range clients {
 		select {
-		case client.send <- message:
+		case client.send <- msgCopy:
 		default:
 			slow = append(slow, client)
 		}
@@ -188,10 +214,14 @@ func (h *Hub) SendToUser(userID string, message []byte, excludeWorkspace ...stri
 	}
 	h.mu.RUnlock()
 
+	// Copy bytes — json.Marshal may reuse pooled buffer
+	msgCopy := make([]byte, len(message))
+	copy(msgCopy, message)
+
 	var slow []target
 	for _, t := range targets {
 		select {
-		case t.client.send <- message:
+		case t.client.send <- msgCopy:
 		default:
 			slow = append(slow, t)
 		}
@@ -220,8 +250,78 @@ func (h *Hub) Broadcast(message []byte) {
 	h.broadcast <- message
 }
 
+// RegisterGroup subscribes a client to a group room.
+func (h *Hub) RegisterGroup(client *Client, groupID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.groupRooms[groupID] == nil {
+		h.groupRooms[groupID] = make(map[*Client]bool)
+	}
+	h.groupRooms[groupID][client] = true
+}
+
+// UnregisterGroup unsubscribes a client from a group room.
+func (h *Hub) UnregisterGroup(client *Client, groupID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if clients, ok := h.groupRooms[groupID]; ok {
+		delete(clients, client)
+		if len(clients) == 0 {
+			delete(h.groupRooms, groupID)
+		}
+	}
+}
+
+// BroadcastToGroup sends a message to all clients subscribed to a group room.
+func (h *Hub) BroadcastToGroup(groupID string, message []byte) {
+	h.mu.RLock()
+	clients := h.groupRooms[groupID]
+	// Copy bytes — json.Marshal may reuse pooled buffer
+	msgCopy := make([]byte, len(message))
+	copy(msgCopy, message)
+	var slow []*Client
+	for client := range clients {
+		select {
+		case client.send <- msgCopy:
+		default:
+			slow = append(slow, client)
+		}
+	}
+	h.mu.RUnlock()
+
+	if len(slow) > 0 {
+		h.mu.Lock()
+		for _, client := range slow {
+			if room, ok := h.groupRooms[groupID]; ok {
+				if _, exists := room[client]; exists {
+					delete(room, client)
+					close(client.send)
+					if len(room) == 0 {
+						delete(h.groupRooms, groupID)
+					}
+				}
+			}
+		}
+		h.mu.Unlock()
+	}
+}
+
+// UnregisterClientFromAllGroups removes a client from all group rooms.
+func (h *Hub) UnregisterClientFromAllGroups(client *Client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for groupID, clients := range h.groupRooms {
+		if _, exists := clients[client]; exists {
+			delete(clients, client)
+			if len(clients) == 0 {
+				delete(h.groupRooms, groupID)
+			}
+		}
+	}
+}
+
 // HandleWebSocket upgrades an HTTP connection to WebSocket with JWT or PAT auth.
-func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, w http.ResponseWriter, r *http.Request) {
+func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, queries *db.Queries, w http.ResponseWriter, r *http.Request) {
 	tokenStr := r.URL.Query().Get("token")
 	workspaceID := r.URL.Query().Get("workspace_id")
 
@@ -271,10 +371,48 @@ func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, w http.Resp
 		userID = uid
 	}
 
-	// Verify user is a member of the workspace
-	if !mc.IsMember(r.Context(), userID, workspaceID) {
+	// Verify user state (disabled, password change required) if queries is available
+	var isSysAdmin bool
+	if queries != nil {
+		uid := pgtype.UUID{}
+		if err := uid.Scan(userID); err != nil {
+			http.Error(w, `{"error":"invalid user ID"}`, http.StatusInternalServerError)
+			return
+		}
+		user, err := queries.GetUser(r.Context(), uid)
+		if err != nil {
+			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+			return
+		}
+		if user.Disabled {
+			http.Error(w, `{"error":"account disabled"}`, http.StatusForbidden)
+			return
+		}
+		if user.PasswordChangeRequired {
+			http.Error(w, `{"error":"password change required"}`, http.StatusForbidden)
+			return
+		}
+		isSysAdmin = user.Role == "admin"
+	}
+
+	// Verify user is a member of the workspace (system admins bypass)
+	if !isSysAdmin && !mc.IsMember(r.Context(), userID, workspaceID) {
 		http.Error(w, `{"error":"not a member of this workspace"}`, http.StatusForbidden)
 		return
+	}
+
+	// Check workspace is not disabled (system admins bypass)
+	if !isSysAdmin && queries != nil {
+		var wsID pgtype.UUID
+		if err := wsID.Scan(workspaceID); err != nil {
+			http.Error(w, `{"error":"invalid workspace ID"}`, http.StatusInternalServerError)
+			return
+		}
+		ws, err := queries.GetWorkspace(r.Context(), wsID)
+		if err != nil || ws.Disabled {
+			http.Error(w, `{"error":"workspace is disabled"}`, http.StatusForbidden)
+			return
+		}
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -282,6 +420,9 @@ func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, w http.Resp
 		slog.Error("websocket upgrade failed", "error", err)
 		return
 	}
+
+	// 10 MB read limit to accommodate large agent responses
+	conn.SetReadLimit(10 << 20)
 
 	client := &Client{
 		hub:         hub,
@@ -296,6 +437,12 @@ func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, w http.Resp
 	go client.readPump()
 }
 
+// UserID returns the user ID associated with this client.
+func (c *Client) UserID() string { return c.userID }
+
+// WorkspaceID returns the workspace ID associated with this client.
+func (c *Client) WorkspaceID() string { return c.workspaceID }
+
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
@@ -303,15 +450,38 @@ func (c *Client) readPump() {
 	}()
 
 	for {
-		_, _, err := c.conn.ReadMessage()
+		_, raw, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
 				slog.Debug("websocket read error", "error", err, "user_id", c.userID, "workspace_id", c.workspaceID)
 			}
 			break
 		}
-		// TODO: Route inbound messages to appropriate handlers
-		slog.Debug("ws message received", "user_id", c.userID, "workspace_id", c.workspaceID)
+
+		if c.hub.InboundHandler == nil {
+			slog.Debug("ws message received, no handler registered", "user_id", c.userID, "workspace_id", c.workspaceID)
+			continue
+		}
+
+		var msg protocol.Message
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			slog.Debug("ws message parse error", "error", err, "user_id", c.userID)
+			continue
+		}
+
+		resp, success := c.hub.InboundHandler(context.Background(), c, msg.Type, msg.Payload)
+		if len(resp) > 0 && c.workspaceID != "" {
+			// Copy resp bytes — json.Marshal returns pooled buffer slices that can
+			// be mutated by subsequent marshal calls (e.g. during publish/broadcast).
+			respCopy := make([]byte, len(resp))
+			copy(respCopy, resp)
+			select {
+			case c.send <- respCopy:
+			default:
+				slog.Warn("ws response dropped: client send buffer full", "user_id", c.userID)
+			}
+		}
+		_ = success
 	}
 }
 

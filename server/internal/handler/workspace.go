@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -39,6 +41,8 @@ type WorkspaceResponse struct {
 	Settings    any     `json:"settings"`
 	Repos       any     `json:"repos"`
 	IssuePrefix string  `json:"issue_prefix"`
+	Disabled    bool    `json:"disabled"`
+	OwnerName   string  `json:"owner_name,omitempty"`
 	CreatedAt   string  `json:"created_at"`
 	UpdatedAt   string  `json:"updated_at"`
 }
@@ -67,9 +71,24 @@ func workspaceToResponse(w db.Workspace) WorkspaceResponse {
 		Settings:    settings,
 		Repos:       repos,
 		IssuePrefix: w.IssuePrefix,
+		Disabled:    w.Disabled,
 		CreatedAt:   timestampToString(w.CreatedAt),
 		UpdatedAt:   timestampToString(w.UpdatedAt),
 	}
+}
+
+// lookupOwner finds the workspace owner's name from the member table.
+func lookupOwner(ctx context.Context, h *Handler, workspaceID pgtype.UUID) string {
+	members, err := h.Queries.ListMembersWithUser(ctx, workspaceID)
+	if err != nil {
+		return ""
+	}
+	for _, m := range members {
+		if m.Role == "owner" {
+			return m.UserName
+		}
+	}
+	return ""
 }
 
 type MemberResponse struct {
@@ -96,17 +115,83 @@ func (h *Handler) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workspaces, err := h.Queries.ListWorkspaces(r.Context(), parseUUID(userID))
+	q := r.URL.Query()
+	search := strings.TrimSpace(q.Get("search"))
+
+	if requestUserRole(r) == "admin" {
+		// When "page" query param is present, use pagination.
+		// Otherwise return all workspaces (used by login flow, store, etc.)
+		if q.Get("page") == "" {
+			workspaceRows, err := h.Queries.ListAllWorkspaces(r.Context())
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to list workspaces")
+				return
+			}
+			resp := make([]WorkspaceResponse, len(workspaceRows))
+			for i, ws := range workspaceRows {
+				resp[i] = workspaceToResponse(ws)
+			}
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
+
+		page, _ := strconv.Atoi(q.Get("page"))
+		if page < 1 {
+			page = 1
+		}
+		perPage, _ := strconv.Atoi(q.Get("per_page"))
+		if perPage < 1 {
+			perPage = 20
+		}
+		if perPage > 100 {
+			perPage = 100
+		}
+		offset := int32((page - 1) * perPage)
+		limit := int32(perPage)
+
+		total, err := h.Queries.CountAllWorkspaces(r.Context(), db.CountAllWorkspacesParams{
+			Search: search,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to count workspaces")
+			return
+		}
+
+		workspaceRows, err := h.Queries.ListAllWorkspacesPage(r.Context(), db.ListAllWorkspacesPageParams{
+			Search: search,
+			Limit:  limit,
+			Offset: offset,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to list workspaces")
+			return
+		}
+
+		resp := make([]WorkspaceResponse, len(workspaceRows))
+		for i, ws := range workspaceRows {
+			resp[i] = workspaceToResponse(ws)
+			resp[i].OwnerName = lookupOwner(r.Context(), h, ws.ID)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"workspaces": resp,
+			"total":      total,
+			"page":       page,
+			"per_page":   perPage,
+		})
+		return
+	}
+
+	// Non-admin: list user's workspaces (no pagination needed, typically small)
+	workspaceRows, err := h.Queries.ListWorkspaces(r.Context(), parseUUID(userID))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list workspaces")
 		return
 	}
 
-	resp := make([]WorkspaceResponse, len(workspaces))
-	for i, ws := range workspaces {
+	resp := make([]WorkspaceResponse, len(workspaceRows))
+	for i, ws := range workspaceRows {
 		resp[i] = workspaceToResponse(ws)
 	}
-
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -367,6 +452,10 @@ func (h *Handler) CreateMember(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "email is required")
 		return
 	}
+	if !isValidEmail(email) {
+		writeError(w, http.StatusBadRequest, "invalid email format")
+		return
+	}
 
 	role, valid := normalizeMemberRole(req.Role)
 	if !valid {
@@ -381,19 +470,11 @@ func (h *Handler) CreateMember(w http.ResponseWriter, r *http.Request) {
 	user, err := h.Queries.GetUserByEmail(r.Context(), email)
 	if err != nil {
 		if isNotFound(err) {
-			// Auto-create user with email so they can be invited before signing up
-			user, err = h.Queries.CreateUser(r.Context(), db.CreateUserParams{
-				Name:  email,
-				Email: email,
-			})
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "failed to create user")
-				return
-			}
-		} else {
-			writeError(w, http.StatusInternalServerError, "failed to load user")
+			writeError(w, http.StatusNotFound, "user not found")
 			return
 		}
+		writeError(w, http.StatusInternalServerError, "failed to load user")
+		return
 	}
 
 	member, err := h.Queries.CreateMember(r.Context(), db.CreateMemberParams{

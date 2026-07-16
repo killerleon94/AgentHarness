@@ -16,7 +16,8 @@ import (
 func uuidToString(u pgtype.UUID) string { return util.UUIDToString(u) }
 
 // Auth middleware validates JWT tokens or Personal Access Tokens from the Authorization header.
-// Sets X-User-ID and X-User-Email headers on the request for downstream handlers.
+// Sets X-User-ID, X-User-Role, X-User-Disabled headers on the request for downstream handlers.
+// Rejects disabled users and users who must change their password (except on /auth/change-password).
 func Auth(queries *db.Queries) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,12 +35,13 @@ func Auth(queries *db.Queries) func(http.Handler) http.Handler {
 				return
 			}
 
+			if queries == nil {
+				http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+				return
+			}
+
 			// PAT: tokens starting with "mul_"
 			if strings.HasPrefix(tokenString, "mul_") {
-				if queries == nil {
-					http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
-					return
-				}
 				hash := auth.HashToken(tokenString)
 				pat, err := queries.GetPersonalAccessTokenByHash(r.Context(), hash)
 				if err != nil {
@@ -48,10 +50,16 @@ func Auth(queries *db.Queries) func(http.Handler) http.Handler {
 					return
 				}
 
-				r.Header.Set("X-User-ID", uuidToString(pat.UserID))
+				userID := uuidToString(pat.UserID)
+				r.Header.Set("X-User-ID", userID)
 
 				// Best-effort: update last_used_at
 				go queries.UpdatePersonalAccessTokenLastUsed(context.Background(), pat.ID)
+
+				// Look up user state
+				if !checkUserState(w, r, queries, userID) {
+					return
+				}
 
 				next.ServeHTTP(w, r)
 				return
@@ -88,7 +96,47 @@ func Auth(queries *db.Queries) func(http.Handler) http.Handler {
 				r.Header.Set("X-User-Email", email)
 			}
 
+			// Look up user state
+			if !checkUserState(w, r, queries, sub) {
+				return
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// checkUserState queries the user record for role, disabled, and password_change_required.
+// Returns false (and writes error response) if the user is disabled or must change password.
+// On success, sets X-User-Role and X-User-Disabled headers.
+func checkUserState(w http.ResponseWriter, r *http.Request, queries *db.Queries, userID string) bool {
+	var uid pgtype.UUID
+	if err := uid.Scan(userID); err != nil {
+		slog.Warn("auth: invalid user ID format", "user_id", userID)
+		http.Error(w, `{"error":"invalid user ID"}`, http.StatusInternalServerError)
+		return false
+	}
+
+	user, err := queries.GetUser(r.Context(), uid)
+	if err != nil {
+		slog.Warn("auth: user not found", "user_id", userID, "error", err)
+		http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+		return false
+	}
+
+	if user.Disabled {
+		slog.Warn("auth: disabled user", "user_id", userID)
+		http.Error(w, `{"error":"account disabled"}`, http.StatusForbidden)
+		return false
+	}
+
+	if user.PasswordChangeRequired && r.URL.Path != "/auth/change-password" && r.URL.Path != "/api/me" {
+		slog.Warn("auth: password change required", "user_id", userID)
+		http.Error(w, `{"error":"password change required"}`, http.StatusForbidden)
+		return false
+	}
+
+	r.Header.Set("X-User-Role", user.Role)
+
+	return true
 }

@@ -39,6 +39,7 @@ interface CliCallbackConfig {
 interface LoginPageProps {
   logo?: ReactNode;
   onSuccess: () => void;
+  onForceChangePassword?: () => void;
   google?: GoogleAuthConfig;
   cliCallback?: CliCallbackConfig;
   lastWorkspaceId?: string | null;
@@ -48,6 +49,7 @@ interface LoginPageProps {
 export function LoginPageV2({
   logo,
   onSuccess,
+  onForceChangePassword,
   google,
   cliCallback,
   lastWorkspaceId,
@@ -130,11 +132,15 @@ export function LoginPageV2({
         localStorage.setItem("multica_token", token);
         api.setToken(token);
         onTokenObtained?.();
-
-        const wsList = await api.listWorkspaces();
-        hydrateWorkspace(wsList, lastWorkspaceId);
         useAuthStore.getState().setUser(user);
-        onSuccess();
+
+        if (user.password_change_required && onForceChangePassword) {
+          onForceChangePassword();
+        } else {
+          const wsList = await api.listWorkspaces();
+          hydrateWorkspace(wsList, lastWorkspaceId);
+          onSuccess();
+        }
       } catch (err) {
         setError(
           err instanceof Error
@@ -146,7 +152,7 @@ export function LoginPageV2({
         setLoading(false);
       }
     },
-    [email, password, lastWorkspaceId, onSuccess, onTokenObtained, t, hydrateWorkspace, captcha]
+    [email, password, lastWorkspaceId, onSuccess, onForceChangePassword, onTokenObtained, t, hydrateWorkspace, captcha]
   );
 
   const handleRegister = useCallback(
@@ -240,11 +246,16 @@ export function LoginPageV2({
           return;
         }
 
-        await useAuthStore.getState().verifyCode(email, value);
-        const wsList = await api.listWorkspaces();
-        useWorkspaceStore.getState().hydrateWorkspace(wsList, lastWorkspaceId);
-        onTokenObtained?.();
-        onSuccess();
+        const user = await useAuthStore.getState().verifyCode(email, value);
+        if (user.password_change_required && onForceChangePassword) {
+          onTokenObtained?.();
+          onForceChangePassword();
+        } else {
+          const wsList = await api.listWorkspaces();
+          useWorkspaceStore.getState().hydrateWorkspace(wsList, lastWorkspaceId);
+          onTokenObtained?.();
+          onSuccess();
+        }
       } catch (err) {
         setError(
           err instanceof Error ? err.message : t("auth.errors.invalidCode")

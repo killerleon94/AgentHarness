@@ -549,6 +549,7 @@ export const en: LandingDict = {
     runtimes: "Runtimes",
     skills: "Skills",
     settings: "Settings",
+    groups: "Groups",
     pinned: "Pinned",
     workspace: "Workspace",
     configure: "Configure",

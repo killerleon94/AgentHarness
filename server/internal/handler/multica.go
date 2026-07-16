@@ -77,7 +77,7 @@ func getMulticaBinPath() string {
 }
 
 // runMulticaCommand executes a multica CLI command and returns the result
-func runMulticaCommand(command string, userID string, queries *db.Queries) (map[string]interface{}, error) {
+func runMulticaCommand(command string, userID string, userRole string, queries *db.Queries) (map[string]interface{}, error) {
 	// Get per-user mutex for isolation
 	userMu := getUserMutex(userID)
 	userMu.Lock()
@@ -85,13 +85,13 @@ func runMulticaCommand(command string, userID string, queries *db.Queries) (map[
 
 	// If command is "login" and we have a userID, automatically create a PAT and login
 	if strings.TrimSpace(command) == "login" && userID != "" && queries != nil {
-		return runMulticaAutoLogin(queries, userID)
+		return runMulticaAutoLogin(queries, userID, userRole)
 	}
 
 	// Handle daemon commands - use ctrl for user isolation if available, fallback to direct
 	if strings.HasPrefix(strings.TrimSpace(command), "daemon start") {
 		slog.Info("handling daemon start", "userID", userID[:8])
-		return runDaemonStart(command, userID, queries)
+		return runDaemonStart(command, userID, userRole, queries)
 	}
 	if strings.HasPrefix(strings.TrimSpace(command), "daemon stop") {
 		slog.Info("handling daemon stop", "userID", userID[:8])
@@ -248,18 +248,23 @@ func parseDaemonStatus(output string) DaemonStatus {
 
 // runDaemonStart starts the daemon for a specific user using ctrl start
 // as per the multica_ctrl.md spec: multica ctrl start --user <user> --workspace <workspace-id> --profile <profile>
-func runDaemonStart(command string, userID string, queries *db.Queries) (map[string]interface{}, error) {
+func runDaemonStart(command string, userID string, userRole string, queries *db.Queries) (map[string]interface{}, error) {
 	serverURL := os.Getenv("MULTICA_SERVER_URL")
 	env := os.Environ()
 	if serverURL != "" {
 		env = append(env, "MULTICA_SERVER_URL="+serverURL)
 	}
 
-	// Get workspace ID for the user
+	// Get workspace ID for the user (admin may not be a workspace member)
 	ctx := context.Background()
 	wsResp, err := queries.ListWorkspaces(ctx, parseUUID(userID))
 	if err != nil || len(wsResp) == 0 {
-		return nil, fmt.Errorf("no workspaces found for user")
+		if userRole == "admin" {
+			wsResp, err = queries.ListAllWorkspaces(ctx)
+		}
+		if err != nil || len(wsResp) == 0 {
+			return nil, fmt.Errorf("no workspaces found for user")
+		}
 	}
 	wsID := uuidToString(wsResp[0].ID)
 
@@ -521,7 +526,7 @@ func runDaemonStop(command string, userID string) (map[string]interface{}, error
 }
 
 // runMulticaAutoLogin creates a PAT for the user and saves it to the multica config
-func runMulticaAutoLogin(queries *db.Queries, userID string) (map[string]interface{}, error) {
+func runMulticaAutoLogin(queries *db.Queries, userID string, userRole string) (map[string]interface{}, error) {
 	ctx := context.Background()
 
 	// Generate a new PAT
@@ -564,8 +569,13 @@ func runMulticaAutoLogin(queries *db.Queries, userID string) (map[string]interfa
 		}, nil // Still return success since PAT was created
 	}
 
-	// Get user's workspaces and watch the first one
+	// Get user's workspaces and watch the first one (admin may not be a workspace member)
 	wsResp, err := queries.ListWorkspaces(ctx, parseUUID(userID))
+	if err != nil || len(wsResp) == 0 {
+		if userRole == "admin" {
+			wsResp, err = queries.ListAllWorkspaces(ctx)
+		}
+	}
 	if err != nil || len(wsResp) == 0 {
 		slog.Warn("no workspaces found for user", "user_id", userID)
 		return map[string]interface{}{
@@ -609,9 +619,10 @@ func (h *Handler) MulticaHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get userID from request (set by auth middleware)
 	userID := requestUserID(r)
+	userRole := requestUserRole(r)
 
 	// Execute the multica command
-	result, err := runMulticaCommand(req.Command, userID, h.Queries)
+	result, err := runMulticaCommand(req.Command, userID, userRole, h.Queries)
 	if err != nil {
 		stdout, _ := result["stdout"].(string)
 		stderr, _ := result["stderr"].(string)

@@ -22,7 +22,7 @@ export type {
   RuntimeUpdateStatus,
   IssueUsageSummary,
 } from "./agent";
-export type { Workspace, WorkspaceRepo, Member, MemberRole, User, MemberWithUser } from "./workspace";
+export type { Workspace, WorkspaceRepo, Member, MemberRole, User, MemberWithUser, BatchCreateUserResult, PaginatedUsersResponse, ImportUsersResult, ImportUserRow, RegistrationSettings } from "./workspace";
 export type { InboxItem, InboxSeverity, InboxItemType } from "./inbox";
 export type { Comment, CommentType, CommentAuthorType, Reaction } from "./comment";
 export type { TimelineEntry, AssigneeFrequencyEntry } from "./activity";
@@ -34,3 +34,4 @@ export type { ChatSession, ChatMessage, SendChatMessageResponse } from "./chat";
 export type { StorageAdapter } from "./storage";
 export type { Project, ProjectStatus, ProjectPriority, CreateProjectRequest, UpdateProjectRequest, ListProjectsResponse } from "./project";
 export type { PinnedItem, PinnedItemType, CreatePinRequest, ReorderPinsRequest } from "./pin";
+export type { Group, GroupMember, GroupMessage, GroupTask, GroupTaskStatus, CreateGroupRequest, UpdateGroupRequest, InviteMemberRequest, BatchInviteMembersRequest, BatchInviteMemberResult, ListMessagesResponse } from "./groups";

@@ -14,6 +14,8 @@ export interface Workspace {
   settings: Record<string, unknown>;
   repos: WorkspaceRepo[];
   issue_prefix: string;
+  disabled?: boolean;
+  owner_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +34,8 @@ export interface User {
   email: string;
   avatar_url: string | null;
   has_password?: boolean;
+  role?: string;
+  disabled?: boolean;
   password_change_required?: boolean;
   created_at: string;
   updated_at: string;
@@ -46,4 +50,36 @@ export interface MemberWithUser {
   name: string;
   email: string;
   avatar_url: string | null;
+  user_role?: string;
+  user_disabled?: boolean;
+}
+
+export interface BatchCreateUserResult {
+  email: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface PaginatedUsersResponse {
+  users: User[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface ImportUsersResult {
+  total: number;
+  created: number;
+  failed: number;
+  results: ImportUserRow[];
+}
+
+export interface ImportUserRow {
+  email: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface RegistrationSettings {
+  enabled: boolean;
 }

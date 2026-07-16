@@ -99,7 +99,7 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 		b.WriteString("5. Post your answer with:\n")
 		fmt.Fprintf(&b, "   `multica issue comment add %s --parent %s --content \"你的回答\"`\n", ctx.IssueID, ctx.TriggerCommentID)
 		b.WriteString("6. Do NOT change the issue status unless explicitly asked.\n\n")
-	} else {
+	} else if ctx.IssueID != "" {
 		// Assignment-triggered: defer to agent Skills for workflow specifics.
 		b.WriteString("You are responsible for managing the issue status throughout your work.\n\n")
 		fmt.Fprintf(&b, "1. Run `multica issue get %s --output json` to understand your task\n", ctx.IssueID)
@@ -109,6 +109,16 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 		b.WriteString("   If no relevant skill applies, the default workflow is: understand the task → do the work → post a comment with results → update issue status.\n")
 		fmt.Fprintf(&b, "5. When done, run `multica issue status %s in_review`\n", ctx.IssueID)
 		fmt.Fprintf(&b, "6. If blocked, run `multica issue status %s blocked` and post a comment explaining why\n\n", ctx.IssueID)
+	} else {
+		b.WriteString("**You are responding to a group chat mention.**\n\n")
+		b.WriteString("- Someone @mentioned you in a group. Check your prompt for their message.\n")
+		b.WriteString("- Respond naturally and conversationally — this is NOT an issue task.\n")
+		b.WriteString("- You can use `multica workspace get --output json` or `multica workspace members --output json` if you need context.\n")
+		b.WriteString("- If you need help from other agents AFTER your work is done, @mention them.\n")
+		b.WriteString("  Use `multica agent list --output json` to see available agents, then mention them with `[@Name](mention://agent/<agent-id>)`.\n")
+		b.WriteString("- NEVER @mention other agents while still asking the user for input or waiting for their reply.\n")
+		b.WriteString("- Do NOT try to run `multica issue` commands unless explicitly asked.\n")
+		b.WriteString("- Keep your response concise and direct.\n\n")
 	}
 
 	if len(ctx.AgentSkills) > 0 {
@@ -130,7 +140,7 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 	b.WriteString("- **Issue**: `[MUL-123](mention://issue/<issue-id>)` — renders as a clickable link to the issue\n")
 	b.WriteString("- **Member**: `[@Name](mention://member/<user-id>)` — renders as a styled mention and sends a notification\n")
 	b.WriteString("- **Agent**: `[@Name](mention://agent/<agent-id>)` — renders as a styled mention\n\n")
-	b.WriteString("Use `multica issue list --output json` to look up issue IDs, and `multica workspace members --output json` for member IDs.\n\n")
+	b.WriteString("Use `multica issue list --output json` to look up issue IDs, `multica workspace members --output json` for member IDs, and `multica agent list --output json` for agent IDs.\n\n")
 
 	b.WriteString("## Attachments\n\n")
 	b.WriteString("Issues and comments may include file attachments (images, documents, etc.).\n")

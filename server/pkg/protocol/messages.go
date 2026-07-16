@@ -37,10 +37,10 @@ type TaskMessagePayload struct {
 	IssueID string         `json:"issue_id,omitempty"`
 	Seq     int            `json:"seq"`
 	Type    string         `json:"type"`              // "text", "tool_use", "tool_result", "error"
-	Tool    string         `json:"tool,omitempty"`     // tool name for tool_use/tool_result
-	Content string         `json:"content,omitempty"`  // text content
-	Input   map[string]any `json:"input,omitempty"`    // tool input (tool_use only)
-	Output  string         `json:"output,omitempty"`   // tool output (tool_result only)
+	Tool    string         `json:"tool,omitempty"`    // tool name for tool_use/tool_result
+	Content string         `json:"content,omitempty"` // text content
+	Input   map[string]any `json:"input,omitempty"`   // tool input (tool_use only)
+	Output  string         `json:"output,omitempty"`  // tool output (tool_result only)
 }
 
 // DaemonRegisterPayload is sent from daemon to server on connection.
@@ -79,4 +79,69 @@ type HeartbeatPayload struct {
 	DaemonID     string `json:"daemon_id"`
 	AgentID      string `json:"agent_id"`
 	CurrentTasks int    `json:"current_tasks"`
+}
+
+// GroupMessagePayload is broadcast when a new group message is created.
+type GroupMessagePayload struct {
+	ID           string   `json:"id"`
+	GroupID      string   `json:"group_id"`
+	SenderType   string   `json:"sender_type"`
+	SenderID     string   `json:"sender_id"`
+	SenderName   string   `json:"sender_name"`
+	Content      string   `json:"content"`
+	MentionsType []string `json:"mentions_type"`
+	MentionsID   []string `json:"mentions_id"`
+	CreatedAt    string   `json:"created_at"`
+}
+
+// GroupMessageAckPayload is sent to the sender after message persistence.
+type GroupMessageAckPayload struct {
+	ID      string `json:"id"`
+	GroupID string `json:"group_id"`
+	TempID  string `json:"temp_id"`
+}
+
+// GroupMessageErrorPayload is sent to the sender on message persistence failure.
+type GroupMessageErrorPayload struct {
+	TempID string `json:"temp_id"`
+	Error  string `json:"error"`
+}
+
+// GroupTaskStatusPayload is broadcast when a group task changes state.
+type GroupTaskStatusPayload struct {
+	TaskID    string `json:"task_id"`
+	GroupID   string `json:"group_id"`
+	MessageID string `json:"message_id"`
+	AgentID   string `json:"agent_id"`
+	AgentName string `json:"agent_name"`
+	Content   string `json:"content"`
+	Status    string `json:"status"`
+	Error     string `json:"error,omitempty"`
+}
+
+// GroupMemberJoinedPayload is broadcast when a member joins a group.
+type GroupMemberJoinedPayload struct {
+	GroupID    string `json:"group_id"`
+	MemberType string `json:"member_type"`
+	MemberID   string `json:"member_id"`
+	MemberName string `json:"member_name"`
+	Role       string `json:"role"`
+}
+
+// GroupMemberLeftPayload is broadcast when a member leaves a group.
+type GroupMemberLeftPayload struct {
+	GroupID  string `json:"group_id"`
+	MemberID string `json:"member_id"`
+}
+
+// GroupDissolvedPayload is broadcast when a group is dissolved.
+type GroupDissolvedPayload struct {
+	GroupID string `json:"group_id"`
+}
+
+// GroupMessageRequest is the inbound WS message for sending a group message.
+type GroupMessageRequest struct {
+	GroupID string `json:"group_id"`
+	Content string `json:"content"`
+	TempID  string `json:"temp_id"`
 }

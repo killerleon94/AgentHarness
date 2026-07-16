@@ -60,6 +60,9 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 	cfSigner := auth.NewCloudFrontSignerFromEnv()
 	h := handler.New(queries, pool, hub, bus, emailSvc, st, cfSigner, os.Getenv("MULTICA_ENCRYPTION_KEY"))
 
+	// Register inbound WebSocket message handler
+	hub.InboundHandler = h.HandleInboundWSMessage
+
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -84,7 +87,7 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 	mc := &membershipChecker{queries: queries}
 	pr := &patResolver{queries: queries}
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
-		realtime.HandleWebSocket(hub, mc, pr, w, r)
+		realtime.HandleWebSocket(hub, mc, pr, queries, w, r)
 	})
 
 	// Auth (public)
@@ -172,6 +175,9 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 			r.Post("/", h.CreatePersonalAccessToken)
 			r.Delete("/{id}", h.RevokePersonalAccessToken)
 		})
+
+		// Tasks (user-facing, with ownership check, outside workspace middleware)
+		r.Post("/api/tasks/{taskId}/cancel", h.CancelTaskByUser)
 
 		// --- Workspace-scoped routes (all require workspace membership) ---
 		r.Group(func(r chi.Router) {
@@ -297,9 +303,6 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 				})
 			})
 
-			// Tasks (user-facing, with ownership check)
-			r.Post("/api/tasks/{taskId}/cancel", h.CancelTaskByUser)
-
 			r.Route("/api/chat/sessions", func(r chi.Router) {
 				r.Post("/", h.CreateChatSession)
 				r.Get("/", h.ListChatSessions)
@@ -308,6 +311,24 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 					r.Delete("/", h.ArchiveChatSession)
 					r.Post("/messages", h.SendChatMessage)
 					r.Get("/messages", h.ListChatMessages)
+				})
+			})
+
+			// Groups
+			r.Route("/api/groups", func(r chi.Router) {
+				r.Post("/", h.CreateGroup)
+				r.Get("/", h.ListGroups)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Use(middleware.RequireGroupMember(queries))
+					r.Get("/", h.GetGroup)
+					r.Patch("/", h.UpdateGroup)
+					r.Delete("/", h.DeleteGroup)
+					r.Post("/leave", h.LeaveGroup)
+					r.Get("/messages", h.ListGroupMessages)
+					r.Get("/tasks", h.ListGroupTasks)
+					r.Post("/members", h.InviteMember)
+					r.Post("/members/batch", h.BatchInviteMember)
+					r.Delete("/members/{memberId}", h.RemoveMember)
 				})
 			})
 
@@ -322,6 +343,35 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 				r.Post("/{id}/read", h.MarkInboxRead)
 				r.Post("/{id}/archive", h.ArchiveInboxItem)
 			})
+		})
+	})
+
+	// --- Admin routes (require admin role) ---
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.Auth(queries))
+		r.Use(middleware.RequireAdmin)
+
+		r.Route("/api/admin/users", func(r chi.Router) {
+			r.Get("/", h.ListUsers)
+			r.Post("/", h.CreateUser)
+			r.Post("/batch", h.BatchCreateUsers)
+			r.Post("/import", h.ImportUsers)
+			r.Get("/template", h.DownloadUserTemplate)
+			r.Patch("/{id}", h.AdminUpdateUserName)
+			r.Post("/{id}/disable", h.DisableUser)
+			r.Post("/{id}/enable", h.EnableUser)
+			r.Post("/batch/disable", h.BatchDisableUsers)
+			r.Post("/batch/enable", h.BatchEnableUsers)
+		})
+
+		r.Route("/api/admin/workspaces", func(r chi.Router) {
+			r.Post("/{id}/disable", h.DisableWorkspace)
+			r.Post("/{id}/enable", h.EnableWorkspace)
+		})
+
+		r.Route("/api/admin/settings", func(r chi.Router) {
+			r.Get("/registration", h.GetRegistrationStatus)
+			r.Post("/registration", h.SetRegistrationStatus)
 		})
 	})
 

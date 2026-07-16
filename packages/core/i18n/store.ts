@@ -20,14 +20,9 @@ export const useI18nStore = create<I18nState>((set) => ({
   initializeFromCookie: () => {
     if (typeof window !== "undefined") {
       const match = document.cookie.match(/(?:^|;\s*)harness-locale=(\w+)/);
-      const locale = match?.[1];
-      if (locale === "zh") {
-        set({ language: "zh" });
-        document.documentElement.lang = "zh-CN";
-      } else {
-        set({ language: "en" });
-        document.documentElement.lang = "en";
-      }
+      const locale = match?.[1] === "zh" ? "zh" : "en";
+      set({ language: locale });
+      document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
     }
   },
 }));

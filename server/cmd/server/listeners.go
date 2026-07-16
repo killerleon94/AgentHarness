@@ -94,10 +94,109 @@ func registerListeners(bus *events.Bus, hub *realtime.Hub) {
 		hub.SendToUser(userID, data, e.WorkspaceID)
 	})
 
+	// Group events should NOT be broadcast to workspace — they go to group rooms.
+	groupEvents := map[string]bool{
+		protocol.EventGroupMessage:      true,
+		protocol.EventGroupMessageAck:   true,
+		protocol.EventGroupMessageErr:   true,
+		protocol.EventGroupTaskStatus:   true,
+		protocol.EventGroupMemberJoined: true,
+		protocol.EventGroupMemberLeft:   true,
+		protocol.EventGroupDissolved:    true,
+	}
+
+	// group:message — broadcast to group room
+	bus.Subscribe(protocol.EventGroupMessage, func(e events.Event) {
+		payload, ok := e.Payload.(protocol.GroupMessagePayload)
+		if !ok {
+			return
+		}
+		data, _ := json.Marshal(map[string]any{"type": e.Type, "payload": e.Payload, "actor_id": e.ActorID})
+		if data == nil {
+			return
+		}
+		hub.BroadcastToGroup(payload.GroupID, data)
+	})
+
+	// group:message-ack — send only to the specific user (sender)
+	bus.Subscribe(protocol.EventGroupMessageAck, func(e events.Event) {
+		data, _ := json.Marshal(map[string]any{"type": e.Type, "payload": e.Payload, "actor_id": e.ActorID})
+		if data == nil {
+			return
+		}
+		hub.SendToUser(e.ActorID, data)
+	})
+
+	// group:message-error — send only to the specific user (sender)
+	bus.Subscribe(protocol.EventGroupMessageErr, func(e events.Event) {
+		data, _ := json.Marshal(map[string]any{"type": e.Type, "payload": e.Payload, "actor_id": e.ActorID})
+		if data == nil {
+			return
+		}
+		hub.SendToUser(e.ActorID, data)
+	})
+
+	// group:task-status — broadcast to group room
+	bus.Subscribe(protocol.EventGroupTaskStatus, func(e events.Event) {
+		payload, ok := e.Payload.(protocol.GroupTaskStatusPayload)
+		if !ok {
+			return
+		}
+		data, _ := json.Marshal(map[string]any{"type": e.Type, "payload": e.Payload, "actor_id": e.ActorID})
+		if data == nil {
+			return
+		}
+		hub.BroadcastToGroup(payload.GroupID, data)
+	})
+
+	// group:member-joined — broadcast to group room
+	bus.Subscribe(protocol.EventGroupMemberJoined, func(e events.Event) {
+		payload, ok := e.Payload.(protocol.GroupMemberJoinedPayload)
+		if !ok {
+			return
+		}
+		data, _ := json.Marshal(map[string]any{"type": e.Type, "payload": e.Payload, "actor_id": e.ActorID})
+		if data == nil {
+			return
+		}
+		hub.BroadcastToGroup(payload.GroupID, data)
+	})
+
+	// group:member-left — broadcast to group room
+	bus.Subscribe(protocol.EventGroupMemberLeft, func(e events.Event) {
+		payload, ok := e.Payload.(protocol.GroupMemberLeftPayload)
+		if !ok {
+			return
+		}
+		data, _ := json.Marshal(map[string]any{"type": e.Type, "payload": e.Payload, "actor_id": e.ActorID})
+		if data == nil {
+			return
+		}
+		hub.BroadcastToGroup(payload.GroupID, data)
+	})
+
+	// group:dissolved — broadcast to group room
+	bus.Subscribe(protocol.EventGroupDissolved, func(e events.Event) {
+		payload, ok := e.Payload.(protocol.GroupDissolvedPayload)
+		if !ok {
+			return
+		}
+		data, _ := json.Marshal(map[string]any{"type": e.Type, "payload": e.Payload, "actor_id": e.ActorID})
+		if data == nil {
+			return
+		}
+		hub.BroadcastToGroup(payload.GroupID, data)
+	})
+
 	// SubscribeAll handles workspace-broadcast for non-personal events.
 	bus.SubscribeAll(func(e events.Event) {
 		// Skip personal events — they are handled by type-specific listeners above.
 		if personalEvents[e.Type] {
+			return
+		}
+
+		// Skip group events — they are handled by group-specific listeners above.
+		if groupEvents[e.Type] {
 			return
 		}
 

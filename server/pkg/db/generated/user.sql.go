@@ -11,10 +11,99 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const adminUpdateUserName = `-- name: AdminUpdateUserName :one
+UPDATE "user" SET name = $2, updated_at = now() WHERE id = $1 RETURNING id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required, role, disabled
+`
+
+type AdminUpdateUserNameParams struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
+
+func (q *Queries) AdminUpdateUserName(ctx context.Context, arg AdminUpdateUserNameParams) (User, error) {
+	row := q.db.QueryRow(ctx, adminUpdateUserName, arg.ID, arg.Name)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.AvatarUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PasswordHash,
+		&i.PasswordChangeRequired,
+		&i.Role,
+		&i.Disabled,
+	)
+	return i, err
+}
+
+const batchUpdateUserDisabled = `-- name: BatchUpdateUserDisabled :exec
+UPDATE "user" SET disabled = $2 WHERE id = ANY($1::uuid[]) AND role != 'admin'
+`
+
+type BatchUpdateUserDisabledParams struct {
+	Column1  []pgtype.UUID `json:"column_1"`
+	Disabled bool          `json:"disabled"`
+}
+
+func (q *Queries) BatchUpdateUserDisabled(ctx context.Context, arg BatchUpdateUserDisabledParams) error {
+	_, err := q.db.Exec(ctx, batchUpdateUserDisabled, arg.Column1, arg.Disabled)
+	return err
+}
+
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM "user"
+WHERE ($1 = '' OR name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
+  AND ($2 = '' OR disabled = ($2 = 't')::boolean)
+`
+
+type CountUsersParams struct {
+	Search   interface{} `json:"search"`
+	Disabled interface{} `json:"disabled"`
+}
+
+func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers, arg.Search, arg.Disabled)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createAdminUser = `-- name: CreateAdminUser :one
+INSERT INTO "user" (name, email, password_hash, role, password_change_required)
+VALUES ($1, $2, $3, 'admin', false)
+RETURNING id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required, role, disabled
+`
+
+type CreateAdminUserParams struct {
+	Name         string      `json:"name"`
+	Email        string      `json:"email"`
+	PasswordHash pgtype.Text `json:"password_hash"`
+}
+
+func (q *Queries) CreateAdminUser(ctx context.Context, arg CreateAdminUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createAdminUser, arg.Name, arg.Email, arg.PasswordHash)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.AvatarUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PasswordHash,
+		&i.PasswordChangeRequired,
+		&i.Role,
+		&i.Disabled,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO "user" (name, email, avatar_url)
 VALUES ($1, $2, $3)
-RETURNING id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required
+RETURNING id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required, role, disabled
 `
 
 type CreateUserParams struct {
@@ -35,6 +124,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.PasswordHash,
 		&i.PasswordChangeRequired,
+		&i.Role,
+		&i.Disabled,
 	)
 	return i, err
 }
@@ -42,7 +133,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 const createUserWithPassword = `-- name: CreateUserWithPassword :one
 INSERT INTO "user" (name, email, password_hash, password_change_required)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required
+RETURNING id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required, role, disabled
 `
 
 type CreateUserWithPasswordParams struct {
@@ -69,12 +160,14 @@ func (q *Queries) CreateUserWithPassword(ctx context.Context, arg CreateUserWith
 		&i.UpdatedAt,
 		&i.PasswordHash,
 		&i.PasswordChangeRequired,
+		&i.Role,
+		&i.Disabled,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required FROM "user"
+SELECT id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required, role, disabled FROM "user"
 WHERE id = $1
 `
 
@@ -90,12 +183,14 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 		&i.UpdatedAt,
 		&i.PasswordHash,
 		&i.PasswordChangeRequired,
+		&i.Role,
+		&i.Disabled,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required FROM "user"
+SELECT id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required, role, disabled FROM "user"
 WHERE email = $1
 `
 
@@ -111,8 +206,107 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.UpdatedAt,
 		&i.PasswordHash,
 		&i.PasswordChangeRequired,
+		&i.Role,
+		&i.Disabled,
 	)
 	return i, err
+}
+
+const hasAdminUser = `-- name: HasAdminUser :one
+SELECT EXISTS(SELECT 1 FROM "user" WHERE role = 'admin' AND disabled = false) AS exists
+`
+
+func (q *Queries) HasAdminUser(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, hasAdminUser)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const listAllUsers = `-- name: ListAllUsers :many
+SELECT id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required, role, disabled FROM "user" ORDER BY created_at DESC
+`
+
+func (q *Queries) ListAllUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.Query(ctx, listAllUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.AvatarUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PasswordHash,
+			&i.PasswordChangeRequired,
+			&i.Role,
+			&i.Disabled,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsersPage = `-- name: ListUsersPage :many
+SELECT id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required, role, disabled FROM "user"
+WHERE ($1 = '' OR name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
+  AND ($2 = '' OR disabled = ($2 = 't')::boolean)
+ORDER BY created_at DESC
+LIMIT $4 OFFSET $3
+`
+
+type ListUsersPageParams struct {
+	Search   interface{} `json:"search"`
+	Disabled interface{} `json:"disabled"`
+	Offset   int32       `json:"offset"`
+	Limit    int32       `json:"limit"`
+}
+
+func (q *Queries) ListUsersPage(ctx context.Context, arg ListUsersPageParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsersPage,
+		arg.Search,
+		arg.Disabled,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.AvatarUrl,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PasswordHash,
+			&i.PasswordChangeRequired,
+			&i.Role,
+			&i.Disabled,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setPasswordChangeRequired = `-- name: SetPasswordChangeRequired :exec
@@ -133,7 +327,7 @@ UPDATE "user" SET
     avatar_url = COALESCE($3, avatar_url),
     updated_at = now()
 WHERE id = $1
-RETURNING id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required
+RETURNING id, name, email, avatar_url, created_at, updated_at, password_hash, password_change_required, role, disabled
 `
 
 type UpdateUserParams struct {
@@ -154,8 +348,24 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.PasswordHash,
 		&i.PasswordChangeRequired,
+		&i.Role,
+		&i.Disabled,
 	)
 	return i, err
+}
+
+const updateUserDisabled = `-- name: UpdateUserDisabled :exec
+UPDATE "user" SET disabled = $2 WHERE id = $1
+`
+
+type UpdateUserDisabledParams struct {
+	ID       pgtype.UUID `json:"id"`
+	Disabled bool        `json:"disabled"`
+}
+
+func (q *Queries) UpdateUserDisabled(ctx context.Context, arg UpdateUserDisabledParams) error {
+	_, err := q.db.Exec(ctx, updateUserDisabled, arg.ID, arg.Disabled)
+	return err
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :exec

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { ShieldAlert } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -8,9 +9,11 @@ import {
   CardDescription,
   CardContent,
 } from "@multica/ui/components/ui/card";
+import { Alert, AlertDescription } from "@multica/ui/components/ui/alert";
 import { Input } from "@multica/ui/components/ui/input";
 import { Button } from "@multica/ui/components/ui/button";
 import { Label } from "@multica/ui/components/ui/label";
+import { api } from "@multica/core/api";
 import { useAuthStore } from "@multica/core/auth";
 
 interface ForceChangePasswordPageProps {
@@ -26,66 +29,55 @@ export function ForceChangePasswordPage({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const userEmail = useAuthStore((s) => s.user?.email) ?? "";
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!password) {
-      setError("New password is required");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      // We need to get the current user ID from store
-      const user = useAuthStore((s) => s.user);
-      if (!user) {
-        setError("Not authenticated");
-        setLoading(false);
+      e.preventDefault();
+      if (!password) {
+        setError("New password is required");
         return;
       }
-      // After successful change, the password_change_required flag will be cleared
-      // We just need to login again or refresh the user data
-      const token = localStorage.getItem("multica_token");
-      if (!token) {
-        setError("No token found");
-        setLoading(false);
+      if (password !== confirmPassword) {
+        setError("Passwords do not match");
         return;
       }
-      // Reset password with the existing token
-      // We need to get reset password endpoint actually the same endpoint can be used
-      // But for force change we just do it directly with current token isntead of reset token
-      // Actually, let's create a different approach - we can just call update password through the existing reset endpoint with a special case
-      await useAuthStore.getState().resetPassword(token, password);
-       // Refresh user data
-       await useAuthStore.getState().initialize();
-      onSuccess();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to change password");
-      setLoading(false);
-    }
-  }, [password, confirmPassword, onSuccess]);
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters");
+        return;
+      }
+      setLoading(true);
+      setError("");
+      try {
+        await api.changePassword(null, password);
+        // Refresh user data to get updated password_change_required status
+        await useAuthStore.getState().initialize();
+        onSuccess();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to change password");
+        setLoading(false);
+      }
+    },
+    [password, confirmPassword, onSuccess]
+  );
 
   return (
     <div className="flex min-h-svh items-center justify-center">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           {logo && <div className="mx-auto mb-4">{logo}</div>}
-          <CardTitle className="text-2xl">Change Password</CardTitle>
+          <CardTitle className="text-2xl">Set Your Password</CardTitle>
           <CardDescription>
-            You must change your password before continuing
+            Your account has been created by an administrator. Please set a new password to continue.
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <Alert className="mb-4 border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertDescription>
+              First time login for <strong>{userEmail}</strong>. You must set a new password before accessing the system.
+            </AlertDescription>
+          </Alert>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">New Password</Label>
