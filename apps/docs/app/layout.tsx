@@ -5,11 +5,11 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Multica Docs",
-    default: "Multica Docs",
+    template: "%s | AgentHarness Docs",
+    default: "AgentHarness Docs",
   },
   description:
-    "Documentation for Multica — the open-source managed agents platform.",
+    "Documentation for AgentHarness — the open-source managed agents platform.",
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

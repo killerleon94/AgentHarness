@@ -176,8 +176,8 @@ export function RuntimeList({
       setDaemonStatus("stopped");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error("Failed to stop Multica:", error);
-      alert("Failed to stop Multica: " + message);
+      console.error("Failed to stop AgentHarness:", error);
+      alert("Failed to stop AgentHarness: " + message);
     } finally {
       setIsStoppingMultica(false);
     }
@@ -256,8 +256,8 @@ export function RuntimeList({
       // Refresh runtimes list - relies on WS event
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error("Failed to start Multica:", error);
-      alert("Failed to start Multica: " + message);
+      console.error("Failed to start AgentHarness:", error);
+      alert("Failed to start AgentHarness: " + message);
     } finally {
       setIsLoggingIn(false);
       setIsStartingMultica(false);

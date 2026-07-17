@@ -16,7 +16,7 @@ func NewEmailService() *EmailService {
 	apiKey := os.Getenv("RESEND_API_KEY")
 	from := os.Getenv("RESEND_FROM_EMAIL")
 	if from == "" {
-		from = "noreply@multica.ai"
+		from = "noreply@openagent.run"
 	}
 
 	var client *resend.Client
@@ -62,7 +62,7 @@ func (s *EmailService) SendPasswordReset(to, resetLink string) error {
 	params := &resend.SendEmailRequest{
 		From:    s.fromEmail,
 		To:      []string{to},
-		Subject: "Reset your Multica password",
+		Subject: "Reset your AgentHarness password",
 		Html: fmt.Sprintf(
 			`<div style="font-family: sans-serif; max-width: 400px; margin: 0 auto;">
 				<h2>Reset your password</h2>

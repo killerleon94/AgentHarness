@@ -3,22 +3,22 @@ title: Quickstart
 description: Assign your first task to an agent in under 5 minutes.
 ---
 
-Once you have the CLI installed (or signed up for [Multica Cloud](https://multica.ai)), follow these steps to assign your first task to an agent.
+Once you have the CLI installed (or signed up for [AgentHarness Cloud](https://openagent.run)), follow these steps to assign your first task to an agent.
 
 ## 1. Log in and start the daemon
 
 ```bash
-multica login           # Authenticate with your Multica account
+multica login           # Authenticate with your AgentHarness account
 multica daemon start    # Start the local agent runtime
 ```
 
-The daemon runs in the background and keeps your machine connected to Multica. It auto-detects agent CLIs (`claude`, `codex`, `openclaw`, `opencode`) available on your PATH.
+The daemon runs in the background and keeps your machine connected to AgentHarness. It auto-detects agent CLIs (`claude`, `codex`, `openclaw`, `opencode`) available on your PATH.
 
 ## 2. Verify your runtime
 
-Open your workspace in the Multica web app. Navigate to **Settings → Runtimes** — you should see your machine listed as an active **Runtime**.
+Open your workspace in the AgentHarness web app. Navigate to **Settings → Runtimes** — you should see your machine listed as an active **Runtime**.
 
-> **What is a Runtime?** A Runtime is a compute environment that can execute agent tasks. It can be your local machine (via the daemon) or a cloud instance. Each runtime reports which agent CLIs are available, so Multica knows where to route work.
+> **What is a Runtime?** A Runtime is a compute environment that can execute agent tasks. It can be your local machine (via the daemon) or a cloud instance. Each runtime reports which agent CLIs are available, so AgentHarness knows where to route work.
 
 ## 3. Create an agent
 

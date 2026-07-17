@@ -17,7 +17,7 @@ out/
 
 apps/docs/.source/
 garage/
-docs/
+/docs/
 .env
 
 .opencode/
