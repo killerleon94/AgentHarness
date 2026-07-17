@@ -374,7 +374,7 @@ export function LoginPageV2({
               {t("auth.checkYourEmail")}
             </CardTitle>
             <CardDescription>
-              {t("auth.codeSent", `We sent a verification code to ${email}`)}
+              {t("auth.resetLinkSentTo", { email })}
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col gap-2">

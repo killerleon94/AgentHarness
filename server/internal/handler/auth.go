@@ -845,8 +845,13 @@ func (h *Handler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send reset email
-	resetLink := fmt.Sprintf("%s/reset-password?token=%s", getBaseURL(r), token)
+	// Send reset email. Prefer the configured frontend origin: the request
+	// host is the API host (often localhost behind a proxy), not the web app.
+	baseURL := strings.TrimSpace(os.Getenv("FRONTEND_ORIGIN"))
+	if baseURL == "" {
+		baseURL = getBaseURL(r)
+	}
+	resetLink := fmt.Sprintf("%s/reset-password?token=%s", strings.TrimRight(baseURL, "/"), token)
 	if err := h.EmailService.SendPasswordReset(email, resetLink); err != nil {
 		slog.Error("failed to send password reset email", "error", err, "email", email)
 		// Still return success to avoid leaking email existence
