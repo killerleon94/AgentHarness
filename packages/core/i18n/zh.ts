@@ -22,6 +22,7 @@ export const zh = {
     enterCode: "输入验证码",
     checkYourEmail: "查收邮件",
     codeSent: "我们已发送验证码到 {email}",
+    resetLinkSentTo: "重置链接已发送到 {email}",
     resendCode: "重新发送验证码",
     resendIn: "{seconds}秒后重新发送",
     settings: {

@@ -22,6 +22,7 @@ export const en = {
     enterCode: "Enter verification code",
     checkYourEmail: "Check your email",
     codeSent: "We sent a verification code to {email}",
+    resetLinkSentTo: "We've sent a password reset link to {email}",
     resendCode: "Resend code",
     resendIn: "Resend in {seconds}s",
     settings: {

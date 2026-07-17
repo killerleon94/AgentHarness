@@ -184,7 +184,7 @@ export function ResetPasswordPage({ logo, token, onSuccess }: ResetPasswordPageP
             </CardDescription>
           </CardHeader>
           <CardFooter>
-            <Button className="w-full" size="lg" onClick={() => window.location.href = "/forgot-password"}>
+            <Button className="w-full" size="lg" onClick={() => window.location.href = "/login"}>
               Request a new link
             </Button>
           </CardFooter>
@@ -205,7 +205,7 @@ export function ResetPasswordPage({ logo, token, onSuccess }: ResetPasswordPageP
             </CardDescription>
           </CardHeader>
           <CardFooter>
-            <Button className="w-full" size="lg" onClick={() => window.location.href = "/login-password"}>
+            <Button className="w-full" size="lg" onClick={() => window.location.href = "/login"}>
               Sign in with new password
             </Button>
           </CardFooter>
