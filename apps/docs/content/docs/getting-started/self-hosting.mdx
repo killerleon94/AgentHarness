@@ -1,11 +1,11 @@
 ---
 title: Self-Hosting Guide
-description: Deploy Multica on your own infrastructure.
+description: Deploy AgentHarness on your own infrastructure.
 ---
 
 ## Architecture Overview
 
-Multica has three components:
+AgentHarness has three components:
 
 | Component | Description | Technology |
 |-----------|-------------|------------|
@@ -25,8 +25,8 @@ Additionally, each user who wants to run AI agents locally installs the **`multi
 ## Quick Start (Docker Compose)
 
 ```bash
-git clone https://github.com/multica-ai/multica.git
-cd multica
+git clone https://github.com/EeroEternal/AgentHarness.git
+cd AgentHarness
 cp .env.example .env
 ```
 
@@ -71,12 +71,12 @@ All configuration is done via environment variables. Copy `.env.example` as a st
 
 ### Email (Required for Authentication)
 
-Multica uses email-based magic link authentication via [Resend](https://resend.com).
+AgentHarness uses email-based magic link authentication via [Resend](https://resend.com).
 
 | Variable | Description |
 |----------|-------------|
 | `RESEND_API_KEY` | Your Resend API key |
-| `RESEND_FROM_EMAIL` | Sender email address (default: `noreply@multica.ai`) |
+| `RESEND_FROM_EMAIL` | Sender email address (default: `noreply@openagent.run`) |
 
 If you deploy with the repository GitHub Actions workflow in `.github/workflows/deploy.yml`, set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` as repository secrets. The workflow syncs them into the remote `.env.production` during deployment.
 
@@ -123,7 +123,7 @@ These are configured on each user's machine, not on the server:
 
 ## Database Setup
 
-Multica requires PostgreSQL 17 with the pgvector extension.
+AgentHarness requires PostgreSQL 17 with the pgvector extension.
 
 ### Using the Included Docker Compose
 
