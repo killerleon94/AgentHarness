@@ -129,22 +129,27 @@ export function AssigneePicker({
       {/* Members */}
       {filteredMembers.length > 0 && (
         <PickerSection label={translate('common.members', 'Members')}>
-          {filteredMembers.map((m) => (
-            <PickerItem
-              key={m.user_id}
-              selected={isSelected("member", m.user_id)}
-              onClick={() => {
-                onUpdate({
-                  assignee_type: "member",
-                  assignee_id: m.user_id,
-                });
-                setOpen(false);
-              }}
-            >
-              <ActorAvatar actorType="member" actorId={m.user_id} size={18} />
-              <span>{m.name}</span>
-            </PickerItem>
-          ))}
+          {filteredMembers.map((m) => {
+            const disabled = m.user_disabled === true;
+            return (
+              <PickerItem
+                key={m.user_id}
+                selected={isSelected("member", m.user_id)}
+                disabled={disabled}
+                onClick={() => {
+                  if (disabled) return;
+                  onUpdate({
+                    assignee_type: "member",
+                    assignee_id: m.user_id,
+                  });
+                  setOpen(false);
+                }}
+              >
+                <ActorAvatar actorType="member" actorId={m.user_id} size={18} />
+                <span className={disabled ? "text-muted-foreground line-through" : ""}>{m.name}</span>
+              </PickerItem>
+            );
+          })}
         </PickerSection>
       )}
 

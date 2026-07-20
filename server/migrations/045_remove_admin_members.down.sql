@@ -1,0 +1,2 @@
+-- No reversible action: admin member records were intentionally deleted.
+-- To restore, re-run admin_bootstrap.go with the old SyncAdminsToWorkspace logic.

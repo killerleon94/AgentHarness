@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 	"github.com/multica-ai/multica/server/pkg/protocol"
 )
@@ -277,54 +278,92 @@ func (h *Handler) ListChatMessages(w http.ResponseWriter, r *http.Request) {
 // Task cancellation (user-facing, with ownership check)
 // ---------------------------------------------------------------------------
 
-// CancelTaskByUser cancels a task after verifying the requesting user owns
-// the associated chat session or issue within the current workspace.
+// CancelTaskByUser cancels a task after verifying the requesting user has
+// access to the associated resource (chat session, issue, or group).
 func (h *Handler) CancelTaskByUser(w http.ResponseWriter, r *http.Request) {
 	userID, ok := requireUserID(w, r)
 	if !ok {
 		return
 	}
-	workspaceID := ctxWorkspaceID(r.Context())
 	taskID := chi.URLParam(r, "taskId")
+	slog.Debug("CancelTaskByUser called", "task_id", taskID, "user_id", userID)
 
-	task, err := h.Queries.GetAgentTask(r.Context(), parseUUID(taskID))
-	if err != nil {
-		writeError(w, http.StatusNotFound, "task not found")
+	// System admins can cancel any task without resource-specific checks.
+	if requestUserRole(r) == "admin" {
+		cancelled, err := h.TaskService.CancelTask(r.Context(), parseUUID(taskID))
+		if err != nil {
+			slog.Warn("CancelTaskByUser: CancelTask failed", "task_id", taskID, "error", err)
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		slog.Info("CancelTaskByUser: task cancelled by admin", "task_id", taskID)
+		writeJSON(w, http.StatusOK, taskToResponse(*cancelled))
 		return
 	}
 
-	// Verify ownership: for chat tasks, check workspace + creator;
-	// for issue tasks, verify the issue belongs to the current workspace.
+	task, err := h.Queries.GetAgentTask(r.Context(), parseUUID(taskID))
+	if err != nil {
+		slog.Warn("CancelTaskByUser: GetAgentTask failed", "task_id", taskID, "error", err)
+		writeError(w, http.StatusNotFound, "task not found")
+		return
+	}
+	slog.Debug("CancelTaskByUser: task found", "task_id", taskID, "chat_session_id_valid", task.ChatSessionID.Valid, "issue_id_valid", task.IssueID.Valid, "group_id_valid", task.GroupID.Valid)
+
+	// Verify access: for chat tasks, check creator;
+	// for issue/group tasks, verify membership.
 	if task.ChatSessionID.Valid {
-		cs, err := h.Queries.GetChatSessionInWorkspace(r.Context(), db.GetChatSessionInWorkspaceParams{
-			ID:          task.ChatSessionID,
-			WorkspaceID: parseUUID(workspaceID),
-		})
+		cs, err := h.Queries.GetChatSession(r.Context(), task.ChatSessionID)
 		if err != nil {
+			slog.Warn("CancelTaskByUser: GetChatSession failed", "chat_session_id", util.UUIDToString(task.ChatSessionID), "error", err)
 			writeError(w, http.StatusNotFound, "task not found")
 			return
 		}
 		if uuidToString(cs.CreatorID) != userID {
+			slog.Warn("CancelTaskByUser: not chat creator", "user_id", userID, "creator_id", uuidToString(cs.CreatorID))
 			writeError(w, http.StatusForbidden, "not your task")
 			return
 		}
 	} else if task.IssueID.Valid {
 		issue, err := h.Queries.GetIssue(r.Context(), task.IssueID)
-		if err != nil || uuidToString(issue.WorkspaceID) != workspaceID {
+		if err != nil {
+			slog.Warn("CancelTaskByUser: GetIssue failed", "issue_id", util.UUIDToString(task.IssueID), "error", err)
+			writeError(w, http.StatusNotFound, "task not found")
+			return
+		}
+		_, err = h.Queries.GetMemberByUserAndWorkspace(r.Context(), db.GetMemberByUserAndWorkspaceParams{
+			UserID:      parseUUID(userID),
+			WorkspaceID: issue.WorkspaceID,
+		})
+		if err != nil {
+			slog.Warn("CancelTaskByUser: not member of issue workspace", "user_id", userID, "workspace_id", util.UUIDToString(issue.WorkspaceID), "error", err)
+			writeError(w, http.StatusNotFound, "task not found")
+			return
+		}
+	} else if task.GroupID.Valid {
+		_, err := h.Queries.GetGroupMemberByGroupAndMember(r.Context(), db.GetGroupMemberByGroupAndMemberParams{
+			GroupID:    task.GroupID,
+			MemberType: "member",
+			MemberID:   parseUUID(userID),
+		})
+		if err != nil {
+			slog.Warn("CancelTaskByUser: not member of group", "user_id", userID, "group_id", util.UUIDToString(task.GroupID), "error", err)
 			writeError(w, http.StatusNotFound, "task not found")
 			return
 		}
 	} else {
+		slog.Warn("CancelTaskByUser: task has no associated entity", "task_id", taskID)
 		writeError(w, http.StatusNotFound, "task not found")
 		return
 	}
 
 	cancelled, err := h.TaskService.CancelTask(r.Context(), parseUUID(taskID))
 	if err != nil {
+		slog.Warn("CancelTaskByUser: CancelTask failed", "task_id", taskID, "error", err)
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	slog.Info("CancelTaskByUser: task cancelled", "task_id", taskID)
 	writeJSON(w, http.StatusOK, taskToResponse(*cancelled))
 }
 
@@ -333,14 +372,14 @@ func (h *Handler) CancelTaskByUser(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 
 type ChatSessionResponse struct {
-	ID          string  `json:"id"`
-	WorkspaceID string  `json:"workspace_id"`
-	AgentID     string  `json:"agent_id"`
-	CreatorID   string  `json:"creator_id"`
-	Title       string  `json:"title"`
-	Status      string  `json:"status"`
-	CreatedAt   string  `json:"created_at"`
-	UpdatedAt   string  `json:"updated_at"`
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	AgentID     string `json:"agent_id"`
+	CreatorID   string `json:"creator_id"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 type ChatMessageResponse struct {

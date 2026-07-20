@@ -112,6 +112,10 @@ func requestUserID(r *http.Request) string {
 	return r.Header.Get("X-User-ID")
 }
 
+func requestUserRole(r *http.Request) string {
+	return r.Header.Get("X-User-Role")
+}
+
 // resolveActor determines whether the request is from an agent or a human member.
 // If X-Agent-ID and X-Task-ID headers are both set, validates that the task
 // belongs to the claimed agent (defense-in-depth against manual header spoofing).
@@ -225,6 +229,16 @@ func (h *Handler) requireWorkspaceMember(w http.ResponseWriter, r *http.Request,
 	userID, ok := requireUserID(w, r)
 	if !ok {
 		return db.Member{}, false
+	}
+
+	// System admins get a virtual member, consistent with RequireWorkspaceMember middleware.
+	// When the admin model changes, modify this single function.
+	if requestUserRole(r) == "admin" {
+		return db.Member{
+			WorkspaceID: parseUUID(workspaceID),
+			UserID:      parseUUID(userID),
+			Role:        "admin",
+		}, true
 	}
 
 	member, err := h.getWorkspaceMember(r.Context(), userID, workspaceID)

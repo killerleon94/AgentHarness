@@ -20,7 +20,11 @@ function LoginPageContent() {
 
   useEffect(() => {
     if (!isLoading && user && !cliCallbackRaw) {
-      router.replace(nextUrl);
+      if (user.password_change_required) {
+        window.location.href = "/force-change-password";
+      } else {
+        router.replace(nextUrl);
+      }
     }
   }, [isLoading, user, router, nextUrl, cliCallbackRaw]);
 
@@ -32,6 +36,7 @@ function LoginPageContent() {
   return (
     <LoginPageV2
       onSuccess={() => router.push(nextUrl)}
+      onForceChangePassword={() => { window.location.href = "/force-change-password"; }}
       google={
         googleClientId
           ? {

@@ -11,10 +11,10 @@ const (
 	EventCommentCreated       = "comment:created"
 	EventCommentUpdated       = "comment:updated"
 	EventCommentDeleted       = "comment:deleted"
-	EventReactionAdded          = "reaction:added"
-	EventReactionRemoved        = "reaction:removed"
-	EventIssueReactionAdded     = "issue_reaction:added"
-	EventIssueReactionRemoved   = "issue_reaction:removed"
+	EventReactionAdded        = "reaction:added"
+	EventReactionRemoved      = "reaction:removed"
+	EventIssueReactionAdded   = "issue_reaction:added"
+	EventIssueReactionRemoved = "issue_reaction:removed"
 
 	// Agent events
 	EventAgentStatus   = "agent:status"
@@ -74,4 +74,13 @@ const (
 	// Daemon events
 	EventDaemonHeartbeat = "daemon:heartbeat"
 	EventDaemonRegister  = "daemon:register"
+
+	// Group events
+	EventGroupMessage      = "group:message"
+	EventGroupMessageAck   = "group:message-ack"
+	EventGroupMessageErr   = "group:message-error"
+	EventGroupTaskStatus   = "group:task-status"
+	EventGroupMemberJoined = "group:member-joined"
+	EventGroupMemberLeft   = "group:member-left"
+	EventGroupDissolved    = "group:dissolved"
 )

@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Input } from "@multica/ui/components/ui/input";
 import { Button } from "@multica/ui/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { api } from "@multica/core/api";
 import { useTranslation } from "@multica/core";
 
 export function useCaptcha() {
-  const { t } = useTranslation();
   const [captchaId, setCaptchaId] = useState("");
   const [captchaImage, setCaptchaImage] = useState("");
   const [captchaAnswer, setCaptchaAnswer] = useState("");

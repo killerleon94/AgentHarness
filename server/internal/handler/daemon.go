@@ -25,6 +25,7 @@ import (
 // requireDaemonWorkspaceAccess verifies the caller has access to the given workspace.
 // For daemon tokens (mdt_), compares the token's workspace ID directly.
 // For PAT/JWT fallback, verifies user membership in the workspace.
+// Also checks that the workspace is not disabled.
 func (h *Handler) requireDaemonWorkspaceAccess(w http.ResponseWriter, r *http.Request, workspaceID string) bool {
 	if workspaceID == "" {
 		writeError(w, http.StatusNotFound, "not found")
@@ -37,12 +38,21 @@ func (h *Handler) requireDaemonWorkspaceAccess(w http.ResponseWriter, r *http.Re
 			writeError(w, http.StatusNotFound, "not found")
 			return false
 		}
-		return true
+	} else {
+		// PAT/JWT fallback: verify user is a member of the workspace.
+		if _, ok := h.requireWorkspaceMember(w, r, workspaceID, "not found"); !ok {
+			return false
+		}
 	}
 
-	// PAT/JWT fallback: verify user is a member of the workspace.
-	_, ok := h.requireWorkspaceMember(w, r, workspaceID, "not found")
-	return ok
+	// Check workspace is not disabled.
+	ws, err := h.Queries.GetWorkspace(r.Context(), parseUUID(workspaceID))
+	if err != nil || ws.Disabled {
+		writeError(w, http.StatusNotFound, "not found")
+		return false
+	}
+
+	return true
 }
 
 // requireDaemonRuntimeAccess looks up a runtime and verifies the caller owns its workspace.
@@ -84,15 +94,31 @@ func (h *Handler) verifyDaemonWorkspaceAccess(r *http.Request, workspaceID strin
 	if workspaceID == "" {
 		return false
 	}
+
+	var ok bool
 	if daemonWsID := middleware.DaemonWorkspaceIDFromContext(r.Context()); daemonWsID != "" {
-		return daemonWsID == workspaceID
+		ok = daemonWsID == workspaceID
+	} else if requestUserRole(r) == "admin" {
+		ok = true
+	} else {
+		userID := requestUserID(r)
+		if userID == "" {
+			return false
+		}
+		_, err := h.getWorkspaceMember(r.Context(), userID, workspaceID)
+		ok = err == nil
 	}
-	userID := requestUserID(r)
-	if userID == "" {
+	if !ok {
 		return false
 	}
-	_, err := h.getWorkspaceMember(r.Context(), userID, workspaceID)
-	return err == nil
+
+	// Check workspace is not disabled.
+	ws, err := h.Queries.GetWorkspace(r.Context(), parseUUID(workspaceID))
+	if err != nil || ws.Disabled {
+		return false
+	}
+
+	return true
 }
 
 // resolveTaskWorkspaceID derives the workspace ID from a task's issue or chat session.
@@ -105,6 +131,11 @@ func (h *Handler) resolveTaskWorkspaceID(r *http.Request, task db.AgentTaskQueue
 	if task.ChatSessionID.Valid {
 		if cs, err := h.Queries.GetChatSession(r.Context(), task.ChatSessionID); err == nil {
 			return uuidToString(cs.WorkspaceID)
+		}
+	}
+	if task.GroupID.Valid {
+		if group, err := h.Queries.GetGroup(r.Context(), task.GroupID); err == nil {
+			return uuidToString(group.WorkspaceID)
 		}
 	}
 	return ""
@@ -425,6 +456,63 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 						resp.ChatMessage = msgs[i].Content
 						break
 					}
+				}
+			}
+		}
+	}
+
+	// Group task: populate workspace info and group context from the group table.
+	if task.GroupID.Valid {
+		if group, err := h.Queries.GetGroup(r.Context(), task.GroupID); err == nil {
+			resp.WorkspaceID = uuidToString(group.WorkspaceID)
+			resp.GroupContext = &GroupContext{
+				GroupName:    group.Name,
+				Announcement: group.Announcement,
+			}
+			if task.Context != nil {
+				var ctx struct {
+					Content string                   `json:"content"`
+					History []GroupContextHistoryMsg `json:"history"`
+				}
+				if json.Unmarshal(task.Context, &ctx) == nil {
+					resp.GroupContext.Content = ctx.Content
+					for _, h := range ctx.History {
+						resp.GroupContext.History = append(resp.GroupContext.History, HistoryEntry{
+							SenderName: h.SenderName,
+							SenderType: h.SenderType,
+							Content:    h.Content,
+						})
+					}
+				}
+			}
+			// Fetch group members so the agent knows who it can @mention.
+			if dbMembers, err := h.Queries.ListGroupMembers(r.Context(), task.GroupID); err == nil {
+				for _, m := range dbMembers {
+					var memberName, instructions string
+					if m.MemberType == "member" {
+						if user, err := h.Queries.GetUser(r.Context(), m.MemberID); err == nil {
+							memberName = user.Name
+						}
+					} else {
+						if agent, err := h.Queries.GetAgent(r.Context(), m.MemberID); err == nil {
+							memberName = agent.Name
+							instructions = agent.Instructions
+						}
+					}
+					if memberName == "" {
+						continue
+					}
+					resp.GroupContext.Members = append(resp.GroupContext.Members, GroupMember{
+						Name:         memberName,
+						Type:         m.MemberType,
+						Instructions: instructions,
+					})
+				}
+			}
+			if ws, err := h.Queries.GetWorkspace(r.Context(), group.WorkspaceID); err == nil && ws.Repos != nil {
+				var repos []RepoData
+				if json.Unmarshal(ws.Repos, &repos) == nil && len(repos) > 0 {
+					resp.Repos = repos
 				}
 			}
 		}

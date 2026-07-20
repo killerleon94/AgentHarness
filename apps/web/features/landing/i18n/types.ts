@@ -46,6 +46,7 @@ type SidebarDict = {
   runtimes: string;
   skills: string;
   settings: string;
+  groups: string;
   pinned: string;
   workspace: string;
   configure: string;

@@ -9,9 +9,21 @@ export function useActorName() {
   const { data: members = [] } = useQuery(memberListOptions(wsId));
   const { data: agents = [] } = useQuery(agentListOptions(wsId));
 
+  const findMember = (userId: string) => members.find((m) => m.user_id === userId);
+
   const getMemberName = (userId: string) => {
-    const m = members.find((m) => m.user_id === userId);
+    const m = findMember(userId);
     return m?.name ?? "Unknown";
+  };
+
+  const isMemberDisabled = (userId: string) => {
+    const m = findMember(userId);
+    return m?.user_disabled === true;
+  };
+
+  const isMemberAdmin = (userId: string) => {
+    const m = findMember(userId);
+    return m?.user_role === "admin";
   };
 
   const getAgentName = (agentId: string) => {
@@ -36,10 +48,18 @@ export function useActorName() {
   };
 
   const getActorAvatarUrl = (type: string, id: string): string | null => {
-    if (type === "member") return members.find((m) => m.user_id === id)?.avatar_url ?? null;
+    if (type === "member") return findMember(id)?.avatar_url ?? null;
     if (type === "agent") return agents.find((a) => a.id === id)?.avatar_url ?? null;
     return null;
   };
 
-  return { getMemberName, getAgentName, getActorName, getActorInitials, getActorAvatarUrl };
+  return {
+    getMemberName,
+    getAgentName,
+    getActorName,
+    getActorInitials,
+    getActorAvatarUrl,
+    isMemberDisabled,
+    isMemberAdmin,
+  };
 }

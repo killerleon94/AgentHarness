@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -25,12 +26,21 @@ import (
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
+var errRegistrationClosed = fmt.Errorf("registration is closed")
+
+func (h *Handler) isRegistrationEnabled(ctx context.Context) bool {
+	val, err := h.Queries.GetSetting(ctx, "registration_enabled")
+	return err == nil && val == "true"
+}
+
 type UserResponse struct {
 	ID                     string  `json:"id"`
 	Name                   string  `json:"name"`
 	Email                  string  `json:"email"`
 	AvatarURL              *string `json:"avatar_url"`
 	HasPassword            bool    `json:"has_password"`
+	Role                   string  `json:"role"`
+	Disabled               bool    `json:"disabled"`
 	PasswordChangeRequired bool    `json:"password_change_required"`
 	CreatedAt              string  `json:"created_at"`
 	UpdatedAt              string  `json:"updated_at"`
@@ -43,6 +53,8 @@ func userToResponse(u db.User) UserResponse {
 		Email:                  u.Email,
 		AvatarURL:              textToPtr(u.AvatarUrl),
 		HasPassword:            u.PasswordHash.Valid,
+		Role:                   u.Role,
+		Disabled:               u.Disabled,
 		PasswordChangeRequired: u.PasswordChangeRequired,
 		CreatedAt:              timestampToString(u.CreatedAt),
 		UpdatedAt:              timestampToString(u.UpdatedAt),
@@ -167,7 +179,11 @@ func (h *Handler) ensureUserWorkspace(ctx context.Context, user db.User) error {
 		return err
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func generateCode() (string, error) {
@@ -196,6 +212,12 @@ func (h *Handler) findOrCreateUser(ctx context.Context, email string) (db.User, 
 		if !isNotFound(err) {
 			return db.User{}, err
 		}
+
+		// Check if registration is enabled
+		if !h.isRegistrationEnabled(ctx) {
+			return db.User{}, errRegistrationClosed
+		}
+
 		name := email
 		if at := strings.Index(email, "@"); at > 0 {
 			name = email[:at]
@@ -322,12 +344,22 @@ func (h *Handler) VerifyCode(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.findOrCreateUser(r.Context(), email)
 	if err != nil {
+		if errors.Is(err, errRegistrationClosed) {
+			writeError(w, http.StatusForbidden, "registration is closed")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to create user")
 		return
 	}
 
 	if err := h.ensureUserWorkspace(r.Context(), user); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to provision workspace")
+		return
+	}
+
+	if user.Disabled {
+		slog.Warn("login rejected: account disabled", append(logger.RequestAttrs(r), "user_id", uuidToString(user.ID), "email", user.Email)...)
+		writeError(w, http.StatusForbidden, "account disabled")
 		return
 	}
 
@@ -473,6 +505,10 @@ func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.findOrCreateUser(r.Context(), email)
 	if err != nil {
+		if errors.Is(err, errRegistrationClosed) {
+			writeError(w, http.StatusForbidden, "registration is closed")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to create user")
 		return
 	}
@@ -505,6 +541,12 @@ func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.ensureUserWorkspace(r.Context(), user); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to provision workspace")
+		return
+	}
+
+	if user.Disabled {
+		slog.Warn("login rejected: account disabled", append(logger.RequestAttrs(r), "user_id", uuidToString(user.ID), "email", user.Email)...)
+		writeError(w, http.StatusForbidden, "account disabled")
 		return
 	}
 
@@ -600,6 +642,12 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(password) < 6 {
 		writeError(w, http.StatusBadRequest, "password must be at least 6 characters")
+		return
+	}
+
+	// Check if registration is enabled
+	if !h.isRegistrationEnabled(r.Context()) {
+		writeError(w, http.StatusForbidden, "registration is closed")
 		return
 	}
 
@@ -714,6 +762,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(password)); err != nil {
 		slog.Info("password verification failed", append(logger.RequestAttrs(r), "user_id", uuidToString(user.ID), "email", email)...)
 		writeError(w, http.StatusUnauthorized, "invalid email or password")
+		return
+	}
+
+	if user.Disabled {
+		slog.Warn("login rejected: account disabled", append(logger.RequestAttrs(r), "user_id", uuidToString(user.ID), "email", email)...)
+		writeError(w, http.StatusForbidden, "account disabled")
 		return
 	}
 
@@ -910,8 +964,8 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.CurrentPassword == "" || req.Password == "" {
-		writeError(w, http.StatusBadRequest, "current password and new password are required")
+	if req.Password == "" {
+		writeError(w, http.StatusBadRequest, "new password is required")
 		return
 	}
 	if len(req.Password) < 6 {
@@ -925,19 +979,25 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user has password set
 	if !user.PasswordHash.Valid {
 		writeError(w, http.StatusBadRequest, "this account does not have a password set")
 		return
 	}
 
-	// Verify current password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(req.CurrentPassword)); err != nil {
-		writeError(w, http.StatusUnauthorized, "current password is incorrect")
-		return
+	// If password change is required, skip current password check
+	if user.PasswordChangeRequired {
+		// Skip old password verification — user is forced to change on first login
+	} else {
+		if req.CurrentPassword == "" {
+			writeError(w, http.StatusBadRequest, "current password is required")
+			return
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(req.CurrentPassword)); err != nil {
+			writeError(w, http.StatusUnauthorized, "current password is incorrect")
+			return
+		}
 	}
 
-	// Hash new password
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to hash password")
@@ -954,8 +1014,18 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Issue a new JWT so the user can continue without re-login after password change
+	token, err := h.issueJWT(user)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to issue new token")
+		return
+	}
+
 	slog.Info("password changed", append(logger.RequestAttrs(r), "user_id", uuidToString(user.ID))...)
-	writeJSON(w, http.StatusOK, map[string]string{"message": "Password changed successfully"})
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Password changed successfully",
+		"token":   token,
+	})
 }
 
 type SetPasswordRequest struct {

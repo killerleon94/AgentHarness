@@ -94,6 +94,37 @@ type AgentTaskResponse struct {
 	TriggerCommentID *string        `json:"trigger_comment_id,omitempty"` // comment that triggered this task
 	ChatSessionID    string         `json:"chat_session_id,omitempty"`    // non-empty for chat tasks
 	ChatMessage      string         `json:"chat_message,omitempty"`       // user message for chat tasks
+	GroupContext     *GroupContext  `json:"group_context,omitempty"`      // non-nil for group tasks
+}
+
+// GroupContext holds group-task-specific context for the daemon to inject into the prompt.
+type GroupContext struct {
+	GroupName    string         `json:"group_name"`
+	Content      string         `json:"content"`
+	Announcement string         `json:"announcement,omitempty"`
+	Members      []GroupMember  `json:"members,omitempty"`
+	History      []HistoryEntry `json:"history,omitempty"`
+}
+
+// GroupMember holds a group member's name and type for context.
+type GroupMember struct {
+	Name         string `json:"name"`
+	Type         string `json:"type"`                   // "member" or "agent"
+	Instructions string `json:"instructions,omitempty"` // agent's system instructions / identity
+}
+
+// HistoryEntry represents a previous group message for conversational context.
+type HistoryEntry struct {
+	SenderName string `json:"sender_name"`
+	SenderType string `json:"sender_type"`
+	Content    string `json:"content"`
+}
+
+// GroupContextHistoryMsg is used to unmarshal history from task.Context.
+type GroupContextHistoryMsg struct {
+	SenderName string `json:"sender_name"`
+	SenderType string `json:"sender_type"`
+	Content    string `json:"content"`
 }
 
 // TaskAgentData holds agent info included in claim responses so the daemon

@@ -1109,6 +1109,9 @@ func (h *Handler) canAssignAgent(ctx context.Context, r *http.Request, agentID, 
 	if agent.ArchivedAt.Valid {
 		return false, "cannot assign to archived agent"
 	}
+	if requestUserRole(r) == "admin" {
+		return true, ""
+	}
 	if agent.Visibility != "private" {
 		return true, ""
 	}

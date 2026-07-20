@@ -11,6 +11,7 @@ export class WSClient {
   private handlers = new Map<WSEventType, Set<EventHandler>>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private hasConnectedBefore = false;
+  private pendingMessages: WSMessage[] = [];
   private onReconnectCallbacks = new Set<() => void>();
   private anyHandlers = new Set<(msg: WSMessage) => void>();
   private logger: Logger;
@@ -35,6 +36,14 @@ export class WSClient {
 
     this.ws.onopen = () => {
       this.logger.info("connected");
+
+      // Flush messages sent before connection was open
+      const pending = this.pendingMessages;
+      this.pendingMessages = [];
+      for (const msg of pending) {
+        this.ws!.send(JSON.stringify(msg));
+      }
+
       if (this.hasConnectedBefore) {
         for (const cb of this.onReconnectCallbacks) {
           try {
@@ -48,7 +57,13 @@ export class WSClient {
     };
 
     this.ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data as string) as WSMessage;
+      let msg: WSMessage;
+      try {
+        msg = JSON.parse(event.data as string) as WSMessage;
+      } catch (err) {
+        this.logger.warn("failed to parse ws message", event.data, err);
+        return;
+      }
       this.logger.debug("received", msg.type);
       const eventHandlers = this.handlers.get(msg.type);
       if (eventHandlers) {
@@ -85,6 +100,7 @@ export class WSClient {
       this.ws = null;
     }
     this.hasConnectedBefore = false;
+    this.pendingMessages = [];
     this.handlers.clear();
     this.anyHandlers.clear();
     this.onReconnectCallbacks.clear();
@@ -117,6 +133,8 @@ export class WSClient {
   send(message: WSMessage) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
+    } else {
+      this.pendingMessages.push(message);
     }
   }
 }

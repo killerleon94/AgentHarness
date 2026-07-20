@@ -19,6 +19,7 @@ export class TestApiClient {
   private token: string | null = null;
   private workspaceId: string | null = null;
   private createdIssueIds: string[] = [];
+  private createdGroupIds: string[] = [];
 
   async login(email: string, name: string) {
     // Step 1: Send verification code
@@ -121,7 +122,21 @@ export class TestApiClient {
     await this.authedFetch(`/api/issues/${id}`, { method: "DELETE" });
   }
 
-  /** Clean up all issues created during this test. */
+  async createGroup(name: string, announcement?: string) {
+    const res = await this.authedFetch("/api/groups", {
+      method: "POST",
+      body: JSON.stringify({ name, announcement }),
+    });
+    const group = await res.json();
+    this.createdGroupIds.push(group.id);
+    return group;
+  }
+
+  async deleteGroup(id: string) {
+    await this.authedFetch(`/api/groups/${id}`, { method: "DELETE" });
+  }
+
+  /** Clean up all issues and groups created during this test. */
   async cleanup() {
     for (const id of this.createdIssueIds) {
       try {
@@ -131,6 +146,14 @@ export class TestApiClient {
       }
     }
     this.createdIssueIds = [];
+    for (const id of this.createdGroupIds) {
+      try {
+        await this.deleteGroup(id);
+      } catch {
+        /* ignore — may already be deleted */
+      }
+    }
+    this.createdGroupIds = [];
   }
 
   getToken() {

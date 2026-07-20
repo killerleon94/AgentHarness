@@ -95,26 +95,52 @@ func buildMiddleware(queries *db.Queries, resolve func(*http.Request) string, ro
 				return
 			}
 
-			member, err := queries.GetMemberByUserAndWorkspace(r.Context(), db.GetMemberByUserAndWorkspaceParams{
-				UserID:      util.ParseUUID(userID),
-				WorkspaceID: util.ParseUUID(workspaceID),
-			})
-			if err != nil {
-				writeError(w, http.StatusNotFound, "workspace not found")
-				return
-			}
+			userRole := r.Header.Get("X-User-Role")
 
-			if len(roles) > 0 {
-				allowed := false
-				for _, role := range roles {
-					if member.Role == role {
-						allowed = true
-						break
-					}
+			var member db.Member
+			if userRole == "admin" {
+				// system admin: virtual member, bypasses membership and disabled checks
+				member = db.Member{
+					WorkspaceID: util.ParseUUID(workspaceID),
+					UserID:      util.ParseUUID(userID),
+					Role:        "admin",
 				}
-				if !allowed {
-					writeError(w, http.StatusForbidden, "insufficient permissions")
+			} else {
+				// Non-admin: check membership first (hides workspace existence from non-members)
+				m, err := queries.GetMemberByUserAndWorkspace(r.Context(), db.GetMemberByUserAndWorkspaceParams{
+					UserID:      util.ParseUUID(userID),
+					WorkspaceID: util.ParseUUID(workspaceID),
+				})
+				if err != nil {
+					writeError(w, http.StatusNotFound, "workspace not found")
 					return
+				}
+				member = m
+
+				// Non-admin: check workspace disabled after membership is confirmed
+				ws, err := queries.GetWorkspace(r.Context(), util.ParseUUID(workspaceID))
+				if err != nil {
+					writeError(w, http.StatusNotFound, "workspace not found")
+					return
+				}
+				if ws.Disabled {
+					writeError(w, http.StatusForbidden, "workspace is disabled")
+					return
+				}
+
+				// Role check
+				if len(roles) > 0 {
+					allowed := false
+					for _, role := range roles {
+						if member.Role == role {
+							allowed = true
+							break
+						}
+					}
+					if !allowed {
+						writeError(w, http.StatusForbidden, "insufficient permissions")
+						return
+					}
 				}
 			}
 
