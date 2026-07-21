@@ -35,3 +35,12 @@ server/server
 .clawhip/
 
 openspec/
+
+# Test output
+test-results/
+playwright-report/
+
+# Caches
+.eslintcache
+__pycache__/
+.cache/
