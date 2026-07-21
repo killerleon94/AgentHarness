@@ -1,4 +1,4 @@
-# Multica CLI — Installation Guide for AI Agents
+# AgentHarness CLI — Installation Guide for AI Agents
 
 > **Audience:** This document is designed for AI agents (Claude Code, Codex, etc.) to read and execute step-by-step. Each step includes the exact shell commands to run, expected outcomes, and error handling.
 
@@ -7,12 +7,12 @@
 Give this instruction to your AI agent:
 
 ```
-Fetch https://github.com/multica-ai/multica/blob/main/CLI_INSTALL.md and follow the instructions to install Multica CLI, log in, and start the daemon on this machine.
+Fetch https://github.com/multica-ai/multica/blob/main/CLI_INSTALL.md and follow the instructions to install AgentHarness CLI, log in, and start the daemon on this machine.
 ```
 
 ---
 
-## Step 1: Check if Multica CLI is already installed
+## Step 1: Check if AgentHarness CLI is already installed
 
 Run:
 
@@ -25,7 +25,7 @@ multica version
 
 ---
 
-## Step 2: Install the Multica CLI
+## Step 2: Install the AgentHarness CLI
 
 ### Option A: Homebrew (preferred)
 
@@ -97,7 +97,7 @@ multica login
 
 **Important:** This command opens a browser window for OAuth authentication. Tell the user:
 
-> "A browser window will open for Multica login. Please complete the authentication in your browser, then come back here."
+> "A browser window will open for AgentHarness login. Please complete the authentication in your browser, then come back here."
 
 Wait for the command to complete. It will automatically discover and watch all workspaces the user belongs to.
 
@@ -160,7 +160,7 @@ Confirm:
 
 If the agents list is empty, tell the user:
 
-> "The Multica daemon is running but no AI agent CLIs were detected. Please install at least one: [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) or [Codex](https://github.com/openai/codex) (`codex`), then restart the daemon with `multica daemon stop && multica daemon start`."
+> "The AgentHarness daemon is running but no AI agent CLIs were detected. Please install at least one: [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) or [Codex](https://github.com/openai/codex) (`codex`), then restart the daemon with `multica daemon stop && multica daemon start`."
 
 ---
 
@@ -168,4 +168,4 @@ If the agents list is empty, tell the user:
 
 When all steps are complete, inform the user:
 
-> "Multica CLI is installed and the daemon is running. Agents in your workspaces can now execute tasks on this machine. You can manage workspaces with `multica workspace list` and view daemon logs with `multica daemon logs -f`."
+> "AgentHarness CLI is installed and the daemon is running. Agents in your workspaces can now execute tasks on this machine. You can manage workspaces with `multica workspace list` and view daemon logs with `multica daemon logs -f`."
